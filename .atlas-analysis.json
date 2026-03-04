@@ -1,0 +1,220 @@
+{
+  "projectType": "framework",
+  "projectName": "Inkdown",
+  "projectDescription": "A modern, extensible, privacy-focused markdown editor with a powerful plugin system for building custom note-taking workflows.",
+  "theme": "palm",
+  "primaryColor": "#94cb04",
+  "lightColor": "#545454",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/plugin-system",
+              "concepts/workspace",
+              "concepts/cross-platform"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/editor-basics",
+              "guide/keyboard-shortcuts",
+              "guide/themes",
+              "guide/sync"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/app-managers",
+              "architecture/editor-system",
+              "architecture/theme-system",
+              "architecture/config-system",
+              "architecture/ui-system"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Plugin Development",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "plugins/introduction",
+              "plugins/quickstart",
+              "plugins/manifest"
+            ]
+          },
+          {
+            "group": "Plugin API",
+            "pages": [
+              "plugins/plugin-class",
+              "plugins/app-interface",
+              "plugins/workspace",
+              "plugins/editor",
+              "plugins/commands"
+            ]
+          },
+          {
+            "group": "UI Components",
+            "pages": [
+              "plugins/modals",
+              "plugins/settings",
+              "plugins/notices",
+              "plugins/status-bar",
+              "plugins/editor-suggest"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "plugins/markdown-processing",
+              "plugins/editor-extensions",
+              "plugins/events",
+              "plugins/metadata-cache"
+            ]
+          },
+          {
+            "group": "Publishing",
+            "pages": [
+              "plugins/community-plugins",
+              "plugins/testing",
+              "plugins/best-practices"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Theme Development",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "themes/introduction",
+              "themes/quickstart"
+            ]
+          },
+          {
+            "group": "Styling",
+            "pages": [
+              "themes/css-architecture",
+              "themes/css-variables",
+              "themes/color-schemes"
+            ]
+          },
+          {
+            "group": "Publishing",
+            "pages": [
+              "themes/community-themes",
+              "themes/best-practices"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Built-in Plugins",
+        "groups": [
+          {
+            "group": "Core Plugins",
+            "pages": [
+              "built-in/live-preview",
+              "built-in/quick-finder",
+              "built-in/slash-commands",
+              "built-in/word-count",
+              "built-in/emoji"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "groups": [
+          {
+            "group": "Development",
+            "pages": [
+              "contributing/getting-started",
+              "contributing/development-guide",
+              "contributing/code-style",
+              "contributing/testing"
+            ]
+          },
+          {
+            "group": "Mobile Development",
+            "pages": [
+              "contributing/mobile-overview",
+              "contributing/mobile-best-practices"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Extensible plugin system with comprehensive API",
+    "Cross-platform support (Desktop, Web, Mobile)",
+    "CodeMirror 6 editor with Vim mode support",
+    "Live markdown preview with syntax highlighting",
+    "Theme system with custom theme support",
+    "Local-first with optional sync",
+    "Command palette and keyboard shortcuts",
+    "Built-in plugins (Quick Finder, Slash Commands, Word Count)",
+    "Workspace management with tabs and bookmarks",
+    "Community plugin and theme marketplace"
+  ],
+  "publicApiSurface": [
+    "Plugin",
+    "App",
+    "Modal",
+    "FuzzySuggestModal",
+    "ConfirmModal",
+    "Notice",
+    "Setting",
+    "PluginSettingTab",
+    "EditorSuggest",
+    "ItemView",
+    "Component",
+    "Events",
+    "PluginManager",
+    "CommandManager",
+    "ThemeManager",
+    "ConfigManager",
+    "Workspace",
+    "WorkspaceUI",
+    "FileSystemManager",
+    "FileManager",
+    "TabManager",
+    "BookmarkManager",
+    "TagManager",
+    "MetadataCache",
+    "EditorRegistry",
+    "EditorStateManager",
+    "StatusBarManager",
+    "SearchService",
+    "SyncManager",
+    "DialogManager",
+    "FontManager",
+    "MarkdownProcessorRegistry",
+    "IEditor",
+    "IStatusBarItem",
+    "IMarkdownElement",
+    "TFile",
+    "TFolder",
+    "TAbstractFile"
+  ]
+}
