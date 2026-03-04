@@ -1,0 +1,420 @@
+---
+title: Notices
+description: Display toast notifications to users
+---
+
+## Overview
+
+Notices are temporary toast notifications that appear at the top of the screen. Use them to provide feedback to users.
+
+```typescript
+import { Notice } from '@inkdown/api';
+
+new Notice('File saved successfully!');
+```
+
+## Notice Class
+
+### Constructor
+
+```typescript
+class Notice {
+  constructor(message: string, duration?: number);
+  setMessage(message: string): this;
+  hide(): void;
+}
+```
+
+<ParamField path="message" type="string" required>
+  The message to display.
+</ParamField>
+
+<ParamField path="duration" type="number">
+  How long to show the notice in milliseconds. Default is 3000 (3 seconds). Set to 0 for indefinite.
+</ParamField>
+
+### Basic Usage
+
+```typescript
+// Simple notice (3 second duration)
+new Notice('Hello!');
+
+// Custom duration (5 seconds)
+new Notice('This will stay longer', 5000);
+
+// Indefinite (must be manually closed)
+const notice = new Notice('Click to dismiss', 0);
+```
+
+## Plugin Helper Method
+
+The `Plugin` class provides a convenience method:
+
+```typescript
+class Plugin {
+  showNotice(message: string, duration?: number): Notice;
+}
+```
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async onload() {
+    this.showNotice('Plugin loaded!');
+    
+    this.addCommand({
+      id: 'my-command',
+      name: 'My Command',
+      callback: () => {
+        this.showNotice('Command executed', 2000);
+      },
+    });
+  }
+}
+```
+
+## Methods
+
+### setMessage()
+
+<ParamField path="setMessage" type="(message: string) => this">
+  Update the notice message.
+</ParamField>
+
+```typescript
+const notice = new Notice('Processing...');
+
+setTimeout(() => {
+  notice.setMessage('Almost done...');
+}, 2000);
+
+setTimeout(() => {
+  notice.setMessage('Complete!');
+}, 4000);
+```
+
+### hide()
+
+<ResponseField name="hide" type="() => void">
+  Manually hide the notice.
+</ResponseField>
+
+```typescript
+const notice = new Notice('Click to dismiss', 0);
+
+// Hide after user action
+notice.hide();
+```
+
+## Common Use Cases
+
+### Success Messages
+
+```typescript
+this.addCommand({
+  id: 'save-file',
+  name: 'Save File',
+  callback: async () => {
+    try {
+      await this.saveFile();
+      new Notice('File saved successfully!');
+    } catch (error) {
+      new Notice('Failed to save file');
+    }
+  },
+});
+```
+
+### Error Messages
+
+```typescript
+try {
+  await this.processData();
+  new Notice('Processing complete');
+} catch (error) {
+  console.error('Processing failed:', error);
+  new Notice('Processing failed: ' + error.message, 5000);
+}
+```
+
+### Progress Updates
+
+```typescript
+async processFiles() {
+  const files = await this.app.workspace.getMarkdownFiles();
+  const notice = new Notice(`Processing ${files.length} files...`, 0);
+
+  for (let i = 0; i < files.length; i++) {
+    await this.processFile(files[i]);
+    notice.setMessage(`Processing ${i + 1}/${files.length}...`);
+  }
+
+  notice.setMessage('Processing complete!');
+  setTimeout(() => notice.hide(), 2000);
+}
+```
+
+### Confirmation Feedback
+
+```typescript
+this.addCommand({
+  id: 'copy-to-clipboard',
+  name: 'Copy to Clipboard',
+  editorCallback: (editor) => {
+    const content = editor.getSelection() || editor.getValue();
+    navigator.clipboard.writeText(content);
+    new Notice('Copied to clipboard!');
+  },
+});
+```
+
+### Warning Messages
+
+```typescript
+this.addCommand({
+  id: 'clear-cache',
+  name: 'Clear Cache',
+  callback: async () => {
+    new Notice('Clearing cache...', 2000);
+    await this.clearCache();
+    new Notice('Cache cleared. Some features may be slower temporarily.', 5000);
+  },
+});
+```
+
+### Long Operations
+
+```typescript
+async exportAllNotes() {
+  const notice = new Notice('Starting export...', 0);
+
+  try {
+    const files = await this.app.workspace.getMarkdownFiles();
+    notice.setMessage(`Exporting ${files.length} notes...`);
+
+    for (const file of files) {
+      await this.exportNote(file);
+    }
+
+    notice.setMessage('Export complete!');
+    setTimeout(() => notice.hide(), 2000);
+  } catch (error) {
+    notice.setMessage('Export failed: ' + error.message);
+    setTimeout(() => notice.hide(), 5000);
+  }
+}
+```
+
+### Keyboard Shortcut Feedback
+
+```typescript
+this.addCommand({
+  id: 'toggle-feature',
+  name: 'Toggle Feature',
+  hotkey: ['Mod', 'k'],
+  callback: () => {
+    this.featureEnabled = !this.featureEnabled;
+    new Notice(
+      `Feature ${this.featureEnabled ? 'enabled' : 'disabled'}`,
+      2000
+    );
+  },
+});
+```
+
+## Best Practices
+
+### Keep Messages Short
+
+```typescript
+// ✅ Good - concise
+new Notice('File saved');
+new Notice('Export complete');
+
+// ❌ Bad - too verbose
+new Notice('The file has been successfully saved to disk');
+new Notice('The export operation completed successfully and all files have been processed');
+```
+
+### Use Appropriate Durations
+
+```typescript
+// ✅ Good durations
+new Notice('Saved');                    // 3s (default) - quick action
+new Notice('Processing...', 0);         // Indefinite - ongoing
+new Notice('Error occurred', 5000);     // 5s - important message
+
+// ❌ Bad durations
+new Notice('Saved', 10000);             // 10s - too long for simple action
+new Notice('Critical error', 1000);     // 1s - too short for errors
+```
+
+### Provide Actionable Feedback
+
+```typescript
+// ✅ Good - tells user what happened
+new Notice('3 files exported to /exports');
+new Notice('Copied to clipboard');
+new Notice('Settings saved');
+
+// ❌ Bad - vague
+new Notice('Done');
+new Notice('Success');
+new Notice('OK');
+```
+
+### Handle Errors Gracefully
+
+```typescript
+// ✅ Good - error handling
+try {
+  await this.saveFile();
+  new Notice('File saved');
+} catch (error) {
+  console.error('Save failed:', error);
+  new Notice('Failed to save file', 5000);
+}
+
+// ❌ Bad - no error handling
+await this.saveFile();
+new Notice('File saved'); // May not be true!
+```
+
+### Don't Spam Notices
+
+```typescript
+// ✅ Good - single summary notice
+async processManyFiles(files: TFile[]) {
+  for (const file of files) {
+    await this.processFile(file);
+  }
+  new Notice(`Processed ${files.length} files`);
+}
+
+// ❌ Bad - notice for each file
+async processManyFiles(files: TFile[]) {
+  for (const file of files) {
+    await this.processFile(file);
+    new Notice(`Processed ${file.name}`); // Too many!
+  }
+}
+```
+
+### Clean Up Long-Running Notices
+
+```typescript
+// ✅ Good - hide when done
+const notice = new Notice('Processing...', 0);
+try {
+  await this.longOperation();
+  notice.setMessage('Complete!');
+  setTimeout(() => notice.hide(), 2000);
+} catch (error) {
+  notice.setMessage('Failed');
+  setTimeout(() => notice.hide(), 3000);
+}
+
+// ❌ Bad - forgotten indefinite notice
+const notice = new Notice('Processing...', 0);
+await this.longOperation();
+// Notice never hidden!
+```
+
+## Anti-Patterns
+
+### Don't Use for Debugging
+
+```typescript
+// ❌ Bad
+function debugInfo() {
+  new Notice('Debug: value = ' + value);
+}
+
+// ✅ Good
+function debugInfo() {
+  console.log('Debug: value =', value);
+}
+```
+
+### Don't Use for Critical Information
+
+```typescript
+// ❌ Bad - notice disappears
+new Notice('Your API key is: ' + apiKey, 5000);
+
+// ✅ Good - use modal for important info
+class ApiKeyModal extends Modal {
+  onOpen() {
+    this.setTitle('API Key');
+    this.contentEl.createEl('p', { text: 'Your API key:' });
+    this.contentEl.createEl('code', { text: apiKey });
+  }
+}
+```
+
+### Don't Use for User Input
+
+```typescript
+// ❌ Bad - can't interact with notice
+new Notice('Click OK to continue', 0);
+
+// ✅ Good - use modal for interaction
+class ConfirmModal extends Modal {
+  onOpen() {
+    this.setTitle('Confirm');
+    // Add buttons for user interaction
+  }
+}
+```
+
+## Examples from Built-in Plugins
+
+### Quick Finder Plugin
+
+```typescript
+async onChooseSuggestion(item: TFile) {
+  try {
+    await this.app.workspaceUI.openFile(item);
+  } catch (error) {
+    console.error('Failed to open note:', error);
+    new Notice('Failed to open note');
+  }
+}
+
+async toggleTodo(result: SearchResult) {
+  try {
+    // ... toggle logic
+    new Notice('Todo toggled');
+  } catch (e) {
+    console.error(e);
+    new Notice('Failed to toggle todo');
+  }
+}
+
+private async createNote(inputValue: string) {
+  try {
+    // ... creation logic
+    await this.app.tabManager.openTab(notePath, { openInNewTab: true });
+    this.close();
+  } catch (error) {
+    console.error('Failed to create note:', error);
+    new Notice('Failed to create note');
+  }
+}
+```
+
+### Live Preview Plugin
+
+```typescript
+export default class LivePreviewPlugin extends Plugin {
+  async onload() {
+    console.log('LivePreviewPlugin loaded');
+    this.showNotice('Live Preview plugin loaded!', 1000);
+  }
+}
+```
+
+## Related
+
+- [Modals](/plugins/modals) - Dialog windows
+- [Commands](/plugins/commands) - Command feedback
+- [Plugin Class](/plugins/plugin-class) - showNotice() method

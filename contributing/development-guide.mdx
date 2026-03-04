@@ -1,0 +1,424 @@
+---
+title: 'Development Guide'
+description: 'Development setup, commands, and workflow for Inkdown'
+---
+
+This guide covers everything you need to know to set up your development environment and start contributing to Inkdown.
+
+## Initial Setup
+
+### 1. Install Dependencies
+
+After cloning the repository, install all dependencies:
+
+```bash
+bun install
+```
+
+This will install dependencies for all packages in the monorepo using Bun's workspace feature.
+
+### 2. Project Structure
+
+Understand the monorepo structure:
+
+```
+inkdown/
+├── apps/
+│   ├── desktop/          # Tauri desktop application
+│   └── mobile/           # React Native mobile app (Expo)
+├── packages/
+│   ├── core/             # Core business logic
+│   ├── plugins/          # Built-in plugins
+│   ├── native-tauri/     # Tauri-specific adapters
+│   ├── native-expo/      # Expo-specific adapters
+│   ├── storage-tauri/    # Tauri storage implementation
+│   ├── storage-mobile/   # Mobile storage implementation
+│   ├── editor-webview/   # WebView editor component
+│   └── plugin-api/       # Plugin API types
+├── test/                 # Test suites
+│   ├── unit/            # Unit tests
+│   └── smoke/           # Smoke tests
+└── docs/                # Documentation
+```
+
+## Development Commands
+
+### Desktop Development
+
+Start the desktop app in development mode:
+
+```bash
+bun run dev
+# or
+bun tauri dev
+```
+
+This starts the Tauri development server with hot reload.
+
+### Mobile Development
+
+Start the mobile app:
+
+```bash
+# Android
+bun run dev:android
+
+# iOS
+bun run dev:ios
+
+# Start Metro bundler
+bun run --cwd apps/mobile start
+```
+
+### Building
+
+Build the desktop app for production:
+
+```bash
+bun run build
+```
+
+### Code Quality
+
+Run linting and type checking:
+
+```bash
+# Run all checks (lint + typecheck)
+bun run check
+
+# Fix linting issues automatically
+bun run check:fix
+
+# Lint only
+bun run lint
+
+# Fix linting issues
+bun run lint:fix
+
+# Format code
+bun run format
+
+# Type check only
+bun run typecheck
+
+# Type check all packages
+bun run typecheck:packages
+```
+
+### Testing
+
+Run tests:
+
+```bash
+# Run all tests
+bun run test
+
+# Run unit tests only
+bun run test:unit
+
+# Run smoke tests
+bun run test:smoke
+
+# Watch mode
+bun run test:watch
+
+# Coverage report
+bun run test:coverage
+
+# Interactive UI
+bun run test:ui
+```
+
+### Cleaning
+
+Clean build artifacts:
+
+```bash
+bun run clean
+```
+
+## Development Workflow
+
+### 1. Start Development Server
+
+For desktop development:
+
+```bash
+bun run dev
+```
+
+This will:
+- Start Vite dev server with hot reload
+- Launch Tauri window
+- Enable React DevTools
+- Watch for file changes
+
+### 2. Make Changes
+
+Edit files in the appropriate package:
+
+- **Core logic**: `packages/core/src/`
+- **Desktop UI**: `apps/desktop/src/`
+- **Mobile UI**: `apps/mobile/`
+- **Plugins**: `packages/plugins/src/`
+
+### 3. Run Checks
+
+**IMPORTANT**: Always run checks after making changes:
+
+```bash
+bun run check
+```
+
+This ensures:
+- Code follows style guidelines (Biome)
+- No TypeScript errors
+- All linting rules pass
+
+### 4. Update Tests
+
+If your changes affect functionality:
+
+1. Update existing tests if behavior changed
+2. Add new tests for new features
+3. Run tests to verify: `bun run test`
+
+### 5. Update Plugin API
+
+**CRITICAL**: If you change anything in `packages/core/`, update the plugin API:
+
+```bash
+# Navigate to plugin-api package
+cd packages/plugin-api
+
+# Update type definitions
+bun run build
+```
+
+This ensures plugins have access to the latest API.
+
+### 6. Update Documentation
+
+If your changes affect:
+- Public APIs
+- User-facing features
+- Configuration options
+
+Update the relevant documentation in `docs/`.
+
+## Platform-Specific Development
+
+### Desktop (Tauri)
+
+#### Prerequisites
+
+- Rust toolchain (rustc, cargo)
+- Platform-specific dependencies:
+  - **macOS**: Xcode Command Line Tools
+  - **Windows**: Microsoft C++ Build Tools
+  - **Linux**: webkit2gtk, libappindicator
+
+#### Tauri Commands
+
+Located in `apps/desktop/src-tauri/src/`:
+
+```rust
+// Example Tauri command
+#[tauri::command]
+fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(path)
+        .map_err(|e| e.to_string())
+}
+```
+
+#### Building Desktop App
+
+```bash
+# Development build
+bun tauri dev
+
+# Production build
+bun tauri build
+```
+
+### Mobile (Expo)
+
+#### Prerequisites
+
+- Expo CLI
+- Android Studio (for Android)
+- Xcode (for iOS, macOS only)
+
+#### Running on Device
+
+```bash
+# Android
+bun run --cwd apps/mobile android
+
+# iOS (macOS only)
+bun run --cwd apps/mobile ios
+
+# Clear cache if issues occur
+bun run --cwd apps/mobile start:clear
+```
+
+#### Mobile-Specific Guidelines
+
+See [Mobile Best Practices](/contributing/mobile-best-practices) for:
+- Performance optimization
+- Memory management
+- Native-like experience
+
+## Working with Packages
+
+### Core Package
+
+Location: `packages/core/src/`
+
+Contains:
+- App class (`App.ts`)
+- Managers (Plugin, Theme, Command, etc.)
+- Storage interfaces
+- Sync engine
+- Type definitions
+
+**Key principles**:
+- Platform-agnostic code only
+- Use abstractions (interfaces) for platform-specific features
+- No direct DOM or React Native access
+
+### Plugin Development
+
+Create a new plugin:
+
+1. Create plugin file in `packages/plugins/src/`
+2. Extend `Plugin` base class
+3. Implement lifecycle methods
+
+```typescript
+import { Plugin } from '@inkdown/core';
+
+export default class MyPlugin extends Plugin {
+    async onload() {
+        console.log('Plugin loaded!');
+        
+        // Register command
+        this.addCommand({
+            id: 'my-command',
+            name: 'My Command',
+            callback: () => {
+                console.log('Command executed!');
+            },
+        });
+    }
+    
+    async onunload() {
+        console.log('Plugin unloaded!');
+    }
+}
+```
+
+### UI Components
+
+Always use the UIBridge abstraction:
+
+```typescript
+import { UIBridge } from '@inkdown/core';
+
+// Show a modal
+const modal = UIBridge.createModal({
+    title: 'My Modal',
+    content: 'Modal content here',
+});
+modal.open();
+```
+
+## Debugging
+
+### Desktop App
+
+- **DevTools**: Right-click → Inspect Element
+- **Console**: View logs in DevTools console
+- **Rust logs**: Check terminal output
+
+### Mobile App
+
+- **React DevTools**: Install Expo DevTools
+- **Console logs**: Use `console.log()` and view in Metro bundler
+- **Remote debugging**: Shake device → Enable Remote Debugging
+
+## Common Issues
+
+### Build Failures
+
+```bash
+# Clear all caches and rebuild
+bun run clean
+rm -rf node_modules
+bun install
+bun run dev
+```
+
+### Type Errors
+
+```bash
+# Rebuild TypeScript definitions
+bun run typecheck:packages
+```
+
+### Tests Failing
+
+```bash
+# Clear test cache
+rm -rf test/results
+bun run test
+```
+
+### Mobile Metro Bundler Issues
+
+```bash
+# Clear Metro cache
+bun run --cwd apps/mobile clear-cache
+bun run --cwd apps/mobile start:clear
+```
+
+## Best Practices
+
+### Performance
+
+- Use CSS files for styles, not inline styles
+- Memoize expensive computations
+- Debounce/throttle frequent operations
+- Lazy load heavy components
+
+### Theming
+
+**ALWAYS** use CSS variables for colors:
+
+```css
+/* Good ✓ */
+.button {
+    background: var(--color-primary);
+    color: var(--text-primary);
+}
+
+/* Bad ✗ */
+.button {
+    background: #6c99bb;
+    color: #dcdcdc;
+}
+```
+
+### Cross-Platform
+
+- Use UIBridge for all UI operations
+- Never access DOM directly in core code
+- Use native bridge interfaces for platform features
+
+## Next Steps
+
+- Review [Code Style Guidelines](/contributing/code-style)
+- Learn about [Testing Practices](/contributing/testing)
+- For mobile development, see [Mobile Overview](/contributing/mobile-overview)
+
+Happy coding! 🚀

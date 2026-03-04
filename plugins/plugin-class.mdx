@@ -1,0 +1,618 @@
+---
+title: Plugin Class
+description: Base class and lifecycle methods for Inkdown plugins
+---
+
+## Overview
+
+All Inkdown plugins extend the `Plugin` base class, which provides lifecycle methods and utility functions for plugin development.
+
+```typescript
+import { Plugin } from '@inkdown/api';
+
+export default class MyPlugin extends Plugin {
+  async onload(): Promise<void> {
+    // Initialize plugin
+  }
+
+  async onunload(): Promise<void> {
+    // Cleanup
+  }
+}
+```
+
+## Class Definition
+
+```typescript
+export abstract class Plugin extends Component {
+  app: App;
+  manifest: PluginManifest;
+  enabled: boolean;
+
+  constructor(app: App, manifest: PluginManifest);
+
+  abstract onload(): Promise<void>;
+  abstract onunload(): Promise<void>;
+
+  loadData<T = unknown>(): Promise<T | undefined>;
+  saveData(data: unknown): Promise<void>;
+  addCommand(command: Command): Command;
+  addSettingTab(tab: PluginSettingTab): void;
+  addStatusBarItem(): IStatusBarItem;
+  registerEditorSuggest<T>(suggest: EditorSuggest<T>): void;
+  registerMarkdownCodeBlockProcessor(
+    language: string,
+    processor: MarkdownCodeBlockProcessor
+  ): void;
+  registerMarkdownPostProcessor(processor: MarkdownPostProcessor): void;
+  registerEditorExtension(extension: Extension): void;
+  registerEvent(eventRef: () => void): void;
+  registerDomEvent<K extends keyof HTMLElementEventMap>(
+    el: HTMLElement | Document | Window,
+    type: K,
+    callback: (ev: HTMLElementEventMap[K]) => unknown,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  showNotice(message: string, duration?: number): Notice;
+  getRecentFiles(): string[];
+}
+```
+
+## Properties
+
+### app
+
+<ResponseField name="app" type="App">
+  Reference to the main application instance. Provides access to all managers and services.
+</ResponseField>
+
+```typescript
+this.app.workspace        // File operations
+this.app.commandManager   // Commands
+this.app.metadataCache    // File metadata
+this.app.editorRegistry   // Editors
+```
+
+See [App Interface](/plugins/app-interface) for details.
+
+### manifest
+
+<ResponseField name="manifest" type="PluginManifest">
+  The plugin's manifest metadata loaded from `manifest.json`.
+</ResponseField>
+
+```typescript
+console.log(this.manifest.id);       // "my-plugin"
+console.log(this.manifest.version);  // "1.0.0"
+console.log(this.manifest.author);   // "Your Name"
+```
+
+### enabled
+
+<ResponseField name="enabled" type="boolean">
+  Whether the plugin is currently enabled.
+</ResponseField>
+
+```typescript
+if (this.enabled) {
+  // Plugin is active
+}
+```
+
+## Lifecycle Methods
+
+### onload()
+
+<ParamField path="onload" type="() => Promise<void>" required>
+  Called when the plugin is loaded. Initialize your plugin here.
+</ParamField>
+
+```typescript
+async onload() {
+  console.log('Plugin loaded');
+
+  // Load settings
+  await this.loadSettings();
+
+  // Register commands
+  this.addCommand({
+    id: 'my-command',
+    name: 'My Command',
+    callback: () => console.log('Command executed'),
+  });
+
+  // Add status bar
+  const statusBar = this.addStatusBarItem();
+  statusBar.setText('Ready');
+
+  // Register events
+  this.registerEvent(
+    this.app.workspace.onFileCreate((file) => {
+      console.log('File created:', file.path);
+    })
+  );
+}
+```
+
+**Common initialization tasks**:
+- Load plugin settings
+- Register commands
+- Create UI elements
+- Register event listeners
+- Initialize services
+
+### onunload()
+
+<ParamField path="onunload" type="() => Promise<void>" required>
+  Called when the plugin is unloaded. Clean up resources here.
+</ParamField>
+
+```typescript
+async onunload() {
+  console.log('Plugin unloaded');
+
+  // Stop intervals
+  if (this.updateInterval) {
+    clearInterval(this.updateInterval);
+  }
+
+  // Close modals
+  if (this.modal) {
+    this.modal.close();
+  }
+}
+```
+
+<Note>
+Most cleanup is handled automatically. You only need to clean up resources you manage manually (intervals, external connections, etc.).
+</Note>
+
+**Auto-cleanup** (handled by framework):
+- Registered commands
+- Status bar items
+- Settings tabs
+- Event listeners (registered with `registerEvent`)
+- Editor extensions
+- Markdown processors
+
+## Data Persistence
+
+### loadData()
+
+<ParamField path="loadData" type="<T>() => Promise<T | undefined>">
+  Load plugin data from disk. Returns `undefined` if no data exists.
+</ParamField>
+
+```typescript
+interface MyPluginData {
+  count: number;
+  lastUsed: string;
+}
+
+async onload() {
+  const data = await this.loadData<MyPluginData>();
+  if (data) {
+    console.log('Count:', data.count);
+    console.log('Last used:', data.lastUsed);
+  }
+}
+```
+
+**Example: Settings Pattern**
+
+```typescript
+interface MySettings {
+  enabled: boolean;
+  format: string;
+}
+
+const DEFAULT_SETTINGS: MySettings = {
+  enabled: true,
+  format: 'YYYY-MM-DD',
+};
+
+export default class MyPlugin extends Plugin {
+  settings: MySettings = DEFAULT_SETTINGS;
+
+  async onload() {
+    await this.loadSettings();
+  }
+
+  async loadSettings() {
+    const data = await this.loadData<MySettings>();
+    this.settings = { ...DEFAULT_SETTINGS, ...data };
+  }
+}
+```
+
+### saveData()
+
+<ParamField path="saveData" type="(data: unknown) => Promise<void>">
+  Save plugin data to disk. Data is serialized as JSON.
+</ParamField>
+
+```typescript
+async saveSettings() {
+  await this.saveData(this.settings);
+}
+
+// Usage
+this.settings.enabled = false;
+await this.saveSettings();
+```
+
+<Warning>
+Data must be JSON-serializable. Functions, class instances, and circular references will cause errors.
+</Warning>
+
+## Registration Methods
+
+### addCommand()
+
+<ParamField path="addCommand" type="(command: Command) => Command">
+  Register a command that appears in the command palette.
+</ParamField>
+
+```typescript
+this.addCommand({
+  id: 'insert-date',
+  name: 'Insert Current Date',
+  hotkey: ['Mod', 'd'],
+  editorCallback: (editor) => {
+    const date = new Date().toLocaleDateString();
+    editor.replaceSelection(date);
+  },
+});
+```
+
+See [Commands](/plugins/commands) for details.
+
+### addSettingTab()
+
+<ParamField path="addSettingTab" type="(tab: PluginSettingTab) => void">
+  Add a settings tab for your plugin.
+</ParamField>
+
+```typescript
+import { PluginSettingTab } from '@inkdown/api';
+
+class MySettingTab extends PluginSettingTab {
+  display() {
+    // Build settings UI
+  }
+}
+
+async onload() {
+  this.addSettingTab(new MySettingTab(this.app, this));
+}
+```
+
+See [Settings](/plugins/settings) for details.
+
+### addStatusBarItem()
+
+<ParamField path="addStatusBarItem" type="() => IStatusBarItem">
+  Create a status bar item.
+</ParamField>
+
+```typescript
+const statusBar = this.addStatusBarItem();
+statusBar.setText('Word count: 0');
+statusBar.setIcon('file-text');
+statusBar.setOnClick(() => {
+  this.showNotice('Status bar clicked!');
+});
+```
+
+See [Status Bar](/plugins/status-bar) for details.
+
+### registerEditorSuggest()
+
+<ParamField path="registerEditorSuggest" type="<T>(suggest: EditorSuggest<T>) => void">
+  Register an autocomplete/suggest provider for the editor.
+</ParamField>
+
+```typescript
+class MyEditorSuggest extends EditorSuggest<string> {
+  onTrigger(cursor, editor, file) {
+    // Detect trigger
+  }
+
+  getSuggestions(context) {
+    return ['suggestion1', 'suggestion2'];
+  }
+
+  selectSuggestion(value, evt) {
+    // Insert suggestion
+  }
+}
+
+async onload() {
+  this.registerEditorSuggest(new MyEditorSuggest(this.app));
+}
+```
+
+See [Editor Suggest](/plugins/editor-suggest) for details.
+
+### registerMarkdownCodeBlockProcessor()
+
+<ParamField path="registerMarkdownCodeBlockProcessor" type="(language: string, processor: MarkdownCodeBlockProcessor) => void">
+  Process code blocks with a specific language.
+</ParamField>
+
+```typescript
+this.registerMarkdownCodeBlockProcessor('mermaid', (source, el, ctx) => {
+  // Render mermaid diagram
+  el.setText('Diagram: ' + source);
+});
+```
+
+See [Markdown Processing](/plugins/markdown-processing) for details.
+
+### registerMarkdownPostProcessor()
+
+<ParamField path="registerMarkdownPostProcessor" type="(processor: MarkdownPostProcessor) => void">
+  Process rendered markdown content.
+</ParamField>
+
+```typescript
+this.registerMarkdownPostProcessor((el, ctx) => {
+  // Find and process elements
+  const links = el.findAll('a');
+  links.forEach(link => {
+    link.addClass('external-link');
+  });
+});
+```
+
+See [Markdown Processing](/plugins/markdown-processing) for details.
+
+### registerEditorExtension()
+
+<ParamField path="registerEditorExtension" type="(extension: Extension) => void">
+  Add a CodeMirror extension to the editor.
+</ParamField>
+
+```typescript
+import { ViewPlugin } from '@codemirror/view';
+
+const myExtension = ViewPlugin.fromClass(class {
+  constructor(view) {
+    // Initialize
+  }
+  
+  update(update) {
+    // Handle updates
+  }
+});
+
+this.registerEditorExtension(myExtension);
+```
+
+See [Editor Extensions](/plugins/editor-extensions) for details.
+
+### registerEvent()
+
+<ParamField path="registerEvent" type="(eventRef: () => void) => void">
+  Register an event listener that will be cleaned up automatically.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileCreate((file) => {
+    console.log('Created:', file.path);
+  })
+);
+
+this.registerEvent(
+  this.app.workspace.onFileModify((file) => {
+    console.log('Modified:', file.path);
+  })
+);
+```
+
+See [Events](/plugins/events) for details.
+
+### registerDomEvent()
+
+<ParamField path="registerDomEvent" type="(el: HTMLElement, type: string, callback: Function, options?: AddEventListenerOptions) => void">
+  Register a DOM event listener with automatic cleanup.
+</ParamField>
+
+```typescript
+const button = document.createElement('button');
+this.registerDomEvent(button, 'click', (evt) => {
+  console.log('Button clicked');
+});
+
+// Also works with window and document
+this.registerDomEvent(window, 'resize', () => {
+  console.log('Window resized');
+});
+```
+
+## Utility Methods
+
+### showNotice()
+
+<ParamField path="showNotice" type="(message: string, duration?: number) => Notice">
+  Display a toast notification.
+</ParamField>
+
+```typescript
+this.showNotice('File saved successfully!');
+this.showNotice('Error occurred', 5000); // 5 second duration
+```
+
+Default duration is 3 seconds.
+
+### getRecentFiles()
+
+<ParamField path="getRecentFiles" type="() => string[]">
+  Get list of recently opened file paths.
+</ParamField>
+
+```typescript
+const recentFiles = this.getRecentFiles();
+console.log('Recent files:', recentFiles);
+```
+
+## Complete Example
+
+Here's the Word Count plugin demonstrating multiple features:
+
+```typescript
+import { Plugin, PluginSettingTab, Setting } from '@inkdown/api';
+
+interface WordCountSettings {
+  showCharCount: boolean;
+  showWordCount: boolean;
+  countSpaces: boolean;
+}
+
+const DEFAULT_SETTINGS: WordCountSettings = {
+  showCharCount: false,
+  showWordCount: true,
+  countSpaces: false,
+};
+
+export default class WordCountPlugin extends Plugin {
+  settings: WordCountSettings = DEFAULT_SETTINGS;
+  private statusBarItem: IStatusBarItem | null = null;
+  private updateInterval: number | null = null;
+
+  async onload() {
+    console.log('WordCountPlugin loaded');
+
+    await this.loadSettings();
+    await this.createStatusBarItem();
+    this.addSettingTab(new WordCountSettingTab(this.app, this));
+    this.startUpdating();
+  }
+
+  async onunload() {
+    console.log('WordCountPlugin unloaded');
+    this.stopUpdating();
+  }
+
+  async loadSettings() {
+    const data = await this.loadData<WordCountSettings>();
+    this.settings = { ...DEFAULT_SETTINGS, ...data };
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+    this.updateWordCount();
+  }
+
+  private async createStatusBarItem() {
+    this.statusBarItem = this.addStatusBarItem();
+    this.statusBarItem.addClass('word-count-status');
+    this.statusBarItem.setIcon('folder-heart');
+    this.updateWordCount();
+  }
+
+  private startUpdating() {
+    this.updateInterval = window.setInterval(() => {
+      this.updateWordCount();
+    }, 500);
+  }
+
+  private stopUpdating() {
+    if (this.updateInterval !== null) {
+      window.clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  }
+
+  private updateWordCount() {
+    if (!this.statusBarItem) return;
+
+    const activeEditorView = this.app.editorRegistry.getActive();
+    if (!activeEditorView) {
+      this.statusBarItem.setText('');
+      return;
+    }
+
+    const content = activeEditorView.state.doc.toString();
+    const wordCount = this.countWords(content);
+    const charCount = this.countCharacters(content);
+
+    const parts: string[] = [];
+    if (this.settings.showWordCount) {
+      parts.push(`${wordCount} ${wordCount === 1 ? 'word' : 'words'}`);
+    }
+    if (this.settings.showCharCount) {
+      parts.push(`${charCount} ${charCount === 1 ? 'char' : 'chars'}`);
+    }
+
+    this.statusBarItem.setText(parts.join(' • '));
+  }
+
+  private countWords(text: string): number {
+    if (!text || text.trim().length === 0) return 0;
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    return words.length;
+  }
+
+  private countCharacters(text: string): number {
+    if (!text) return 0;
+    return this.settings.countSpaces ? text.length : text.replace(/\s/g, '').length;
+  }
+}
+
+class WordCountSettingTab extends PluginSettingTab {
+  plugin: WordCountPlugin;
+
+  constructor(app: App, plugin: WordCountPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display() {
+    const { containerEl } = this;
+
+    new Setting(containerEl).setName('Word Count Settings').setHeading();
+
+    new Setting(containerEl)
+      .setName('Show word count')
+      .setDesc('Display the number of words in the current note')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showWordCount)
+        .onChange(async (value) => {
+          this.plugin.settings.showWordCount = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Show character count')
+      .setDesc('Display the number of characters in the current note')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showCharCount)
+        .onChange(async (value) => {
+          this.plugin.settings.showCharCount = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('Count spaces in character count')
+      .setDesc('Include spaces when counting characters')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.countSpaces)
+        .onChange(async (value) => {
+          this.plugin.settings.countSpaces = value;
+          await this.plugin.saveSettings();
+        })
+      );
+  }
+}
+```
+
+## Related
+
+- [App Interface](/plugins/app-interface) - Access core managers
+- [Commands](/plugins/commands) - Register commands
+- [Settings](/plugins/settings) - Create settings UI
+- [Events](/plugins/events) - Event system

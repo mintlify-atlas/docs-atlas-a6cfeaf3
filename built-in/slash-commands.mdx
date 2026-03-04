@@ -1,0 +1,473 @@
+---
+title: Slash Commands Plugin
+description: Quick markdown element insertion with / commands
+---
+
+The Slash Commands plugin provides a quick way to insert markdown elements by typing `/` followed by a command name.
+
+## Overview
+
+Type `/` at the start of a line or after a space to bring up a menu of markdown elements you can insert:
+
+- Headings (H1, H2, H3)
+- Lists (bullet, numbered, todo)
+- Code blocks
+- Blockquotes
+- Horizontal rules
+
+The slash menu appears automatically with suggestions as you type.
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:1-17`
+
+## Available Commands
+
+| Command | Syntax | Description |
+|---------|--------|-------------|
+| **h1** | `/h1` | # Large heading |
+| **h2** | `/h2` | ## Medium heading |
+| **h3** | `/h3` | ### Small heading |
+| **bullet-list** | `/bullet` or `/list` | - Bullet list |
+| **numbered-list** | `/numbered` or `/1` | 1. Numbered list |
+| **quote** | `/quote` | > Blockquote |
+| **code-block** | `/code` | \`\`\` Code block |
+| **todo** | `/todo` | - [ ] Todo item |
+| **divider** | `/divider` or `/hr` | --- Horizontal rule |
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:40-121`
+
+## Usage
+
+### Basic Usage
+
+1. Type `/` at the start of a new line
+2. A suggestion menu appears
+3. Type to filter (e.g., `/h` shows headings)
+4. Press `Enter` or click to insert
+5. The line is replaced with the markdown element
+
+### Examples
+
+#### Insert Heading
+
+**Type**: `/h1`
+
+**Result**: `# ` (cursor positioned after space)
+
+#### Insert Code Block
+
+**Type**: `/code`
+
+**Result**:
+````
+```
+
+```
+````
+(cursor positioned inside the block)
+
+#### Insert Todo
+
+**Type**: `/todo`
+
+**Result**: `- [ ] ` (cursor positioned after space)
+
+#### Insert Divider
+
+**Type**: `/divider`
+
+**Result**: `---` (cursor at end)
+
+## Implementation
+
+### EditorSuggest System
+
+Slash Commands uses Inkdown's `EditorSuggest` API:
+
+```typescript
+class SlashCommandSuggest extends EditorSuggest<SlashCommand> {
+    onTrigger(cursor: EditorPosition, editor: any, _file: TFile | null): EditorSuggestTriggerInfo | null {
+        const line = editor.state.doc.line(cursor.line + 1);
+        const sub = line.text.substring(0, cursor.ch);
+        
+        // Trigger on "/" at start of line or after space
+        const match = sub.match(/(?:^|\s)\/$/);
+        if (match) {
+            return {
+                start: { line: cursor.line, ch: match.index! + (match[0].startsWith(' ') ? 1 : 0) },
+                end: cursor,
+                query: ''
+            };
+        }
+        
+        return null;
+    }
+    
+    getSuggestions(context: EditorSuggestContext): SlashCommand[] {
+        const query = context.query.toLowerCase();
+        return this.commands.filter(
+            (cmd) => cmd.name.toLowerCase().includes(query) || cmd.id.toLowerCase().includes(query)
+        );
+    }
+    
+    selectSuggestion(cmd: SlashCommand, _evt: MouseEvent | KeyboardEvent): void {
+        // Execute the command action
+        cmd.action(editor, start);
+    }
+}
+```
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:30-209`
+
+### Command Structure
+
+```typescript
+interface SlashCommand {
+    id: string;              // Unique identifier
+    name: string;            // Display name
+    icon: string;            // Icon name
+    description: string;     // Short description
+    action: (editor: any, cursor: EditorPosition) => void;  // What to do
+}
+```
+
+Example command definition:
+
+```typescript
+{
+    id: 'h1',
+    name: 'Heading 1',
+    icon: 'heading-1',
+    description: 'Big section heading',
+    action: (editor, cursor) => this.insertLinePrefix(editor, cursor, '# ')
+}
+```
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:19-25`
+
+### Insert Actions
+
+#### Simple Prefix Insertion
+
+For elements that just add a prefix:
+
+```typescript
+insertLinePrefix(editor: any, cursor: EditorPosition, prefix: string) {
+    const line = editor.state.doc.line(cursor.line + 1);
+    editor.dispatch({
+        changes: { from: line.from, to: line.to, insert: prefix },
+        selection: { anchor: line.from + prefix.length }
+    });
+}
+```
+
+Used for:
+- Headings (`# `, `## `, etc.)
+- Lists (`- `, `1. `)
+- Blockquotes (`> `)
+- Todos (`- [ ] `)
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:124-130`
+
+#### Complex Insertion
+
+For elements with more structure:
+
+```typescript
+// Code block - inserts fence with cursor inside
+{
+    id: 'code-block',
+    name: 'Code Block',
+    icon: 'code',
+    description: 'Capture a code snippet',
+    action: (editor, cursor) => {
+        const line = editor.state.doc.line(cursor.line + 1);
+        const from = line.from;
+        const to = line.to;
+        const replacement = '```\n\n```';
+        
+        editor.dispatch({
+            changes: { from, to, insert: replacement },
+            selection: { anchor: from + 4 }  // Position cursor inside block
+        });
+    }
+}
+```
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:85-100`
+
+## Suggestion Menu UI
+
+### Rendering
+
+```typescript
+renderSuggestion(cmd: SlashCommand, el: HTMLElement): void {
+    el.addClass('slash-command-item');
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '10px';
+    el.style.padding = '6px 10px';
+    
+    // Icon
+    const iconEl = el.createDiv({ cls: 'slash-command-icon' });
+    setIcon(iconEl, cmd.icon);
+    
+    // Content
+    const contentEl = el.createDiv({ cls: 'slash-command-content' });
+    contentEl.createDiv({ cls: 'slash-command-name', text: cmd.name }).style.fontWeight = 'bold';
+    contentEl.createDiv({ 
+        cls: 'slash-command-desc', 
+        text: cmd.description 
+    }).style.fontSize = '0.8em';
+}
+```
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:178-201`
+
+### Appearance
+
+```
+╭────────────────────────────╮
+│ /h                        │
+├────────────────────────────┤
+│ H Heading 1               │
+│   Big section heading    │
+│ H Heading 2               │
+│   Medium section heading │
+│ H Heading 3               │
+│   Small section heading  │
+╰────────────────────────────╯
+```
+
+## Settings
+
+### Enable/Disable Slash Commands
+
+You can toggle slash commands in the plugin settings:
+
+```typescript
+interface SlashCommandsSettings {
+    enableSlashCommands: boolean;
+}
+
+const DEFAULT_SETTINGS: SlashCommandsSettings = {
+    enableSlashCommands: true
+};
+```
+
+Settings UI:
+1. Open Settings → Plugins → Slash Commands
+2. Toggle "Enable slash commands"
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:11-17`
+
+### Settings Tab
+
+The plugin provides a settings tab:
+
+```typescript
+class SlashCommandsSettingTab extends PluginSettingTab {
+    display(): void {
+        const { containerEl } = this;
+        containerEl.empty();
+        
+        new Setting(containerEl)
+            .setName('Enable slash commands')
+            .setDesc('Turn slash commands on or off')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableSlashCommands)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableSlashCommands = value;
+                    await this.plugin.saveSettings();
+                })
+            );
+    }
+}
+```
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsSettingTab.ts`
+
+## Keyboard Navigation
+
+### Menu Navigation
+
+- `↑` / `↓`: Navigate suggestions
+- `Enter`: Select current suggestion
+- `Esc`: Cancel and close menu
+- `Tab`: Navigate to next suggestion
+
+### Trigger Behavior
+
+The menu triggers when:
+1. You type `/` at the start of a line
+2. You type `/` after a space
+3. You continue typing after `/` (filters suggestions)
+
+The menu closes when:
+1. You select a suggestion
+2. You press `Esc`
+3. You move the cursor away
+4. You delete the `/`
+
+## Extending Slash Commands
+
+You can add custom slash commands in your plugins:
+
+```typescript
+// In your plugin
+import { EditorSuggest } from '@inkdown/core';
+
+class CustomSlashCommands extends EditorSuggest<CustomCommand> {
+    getCommands(): CustomCommand[] {
+        return [
+            {
+                id: 'custom-element',
+                name: 'My Custom Element',
+                icon: 'star',
+                description: 'Insert my custom markdown element',
+                action: (editor, cursor) => {
+                    // Your custom insertion logic
+                    const line = editor.state.doc.line(cursor.line + 1);
+                    editor.dispatch({
+                        changes: { 
+                            from: line.from, 
+                            to: line.to, 
+                            insert: '::: custom\n\n:::'
+                        },
+                        selection: { anchor: line.from + 12 }
+                    });
+                }
+            }
+        ];
+    }
+}
+
+// Register the suggest
+this.registerEditorSuggest(new CustomSlashCommands(this.app, this));
+```
+
+## Installation
+
+The Slash Commands plugin is built-in and enabled by default.
+
+To toggle it:
+1. Open Settings → Plugins
+2. Find "Slash Commands"
+3. Toggle the enable switch
+
+## Troubleshooting
+
+### Slash menu doesn't appear
+
+**Solutions**:
+1. Check the plugin is enabled
+2. Check the "Enable slash commands" setting
+3. Ensure you're typing `/` at the start of a line or after a space
+4. Try restarting Inkdown
+
+### Wrong command inserted
+
+**Cause**: Selected wrong item from menu.
+
+**Solution**: Use arrow keys to navigate before pressing Enter.
+
+### Menu appears in wrong places
+
+**Issue**: Menu triggers when typing URLs or other slashes.
+
+**Current behavior**: Only triggers at line start or after space. URLs in the middle of text won't trigger it.
+
+### Command not working
+
+**Symptoms**: Command inserts but cursor is in wrong place or format is wrong.
+
+**Solution**: This is likely a bug. Report it with:
+1. Command used
+2. Expected behavior
+3. Actual behavior
+4. Example markdown before and after
+
+## API Reference
+
+### Plugin Class
+
+```typescript
+export default class SlashCommandsPlugin extends Plugin {
+    settings: SlashCommandsSettings;
+    private slashSuggest: SlashCommandSuggest | null;
+    
+    async onload(): Promise<void>;
+    async onunload(): Promise<void>;
+    async loadSettings(): Promise<void>;
+    async saveSettings(): Promise<void>;
+}
+```
+
+**Source**: `packages/plugins/src/slash-commands/SlashCommandsPlugin.ts:212-259`
+
+### SlashCommand Interface
+
+```typescript
+interface SlashCommand {
+    id: string;                          // Unique identifier
+    name: string;                        // Display name
+    icon: string;                        // Icon identifier
+    description: string;                 // Brief description
+    action: (editor: any, cursor: EditorPosition) => void;  // Action to perform
+}
+```
+
+### EditorSuggest Methods
+
+```typescript
+class SlashCommandSuggest extends EditorSuggest<SlashCommand> {
+    // Determine if/where to show suggestions
+    onTrigger(
+        cursor: EditorPosition, 
+        editor: any, 
+        file: TFile | null
+    ): EditorSuggestTriggerInfo | null;
+    
+    // Get matching suggestions for query
+    getSuggestions(context: EditorSuggestContext): SlashCommand[];
+    
+    // Render a suggestion in the menu
+    renderSuggestion(cmd: SlashCommand, el: HTMLElement): void;
+    
+    // Handle suggestion selection
+    selectSuggestion(cmd: SlashCommand, evt: MouseEvent | KeyboardEvent): void;
+}
+```
+
+## Performance
+
+### Suggestion Filtering
+
+Filtering is very fast:
+- Simple string matching
+- Case-insensitive
+- Matches both ID and name
+- O(n) where n is number of commands (~9 commands)
+
+### Menu Rendering
+
+Menu renders only visible suggestions:
+- Virtualized list for large command sets
+- Minimal DOM updates
+- Smooth scrolling
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Quick Finder" icon="search" href="/built-in/quick-finder">
+    Fast file search and creation
+  </Card>
+  <Card title="Live Preview" icon="eye" href="/built-in/live-preview">
+    Real-time markdown rendering
+  </Card>
+  <Card title="Editor API" icon="code" href="/plugins/editor">
+    Editor and suggestion system
+  </Card>
+  <Card title="Plugin Development" icon="plug" href="/plugins/introduction">
+    Create custom plugins
+  </Card>
+</CardGroup>

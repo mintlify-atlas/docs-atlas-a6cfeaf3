@@ -1,0 +1,687 @@
+---
+title: Best Practices
+description: Guidelines for plugin development
+---
+
+## Overview
+
+Follow these best practices to create high-quality, performant, and maintainable Inkdown plugins.
+
+## Code Quality
+
+### Use TypeScript Strictly
+
+```typescript
+// ✅ Good - strict typing
+interface Settings {
+  enabled: boolean;
+  count: number;
+}
+
+function processSettings(settings: Settings): void {
+  if (settings.enabled) {
+    console.log(settings.count);
+  }
+}
+
+// ❌ Bad - any types
+function processSettings(settings: any) {
+  if (settings.enabled) {
+    console.log(settings.count);
+  }
+}
+```
+
+### Handle Errors Gracefully
+
+```typescript
+// ✅ Good - comprehensive error handling
+async function processFile(file: TFile) {
+  try {
+    const content = await this.app.workspace.read(file);
+    return await this.process(content);
+  } catch (error) {
+    console.error(`Failed to process ${file.path}:`, error);
+    this.showNotice(`Failed to process file: ${file.basename}`);
+    return null;
+  }
+}
+
+// ❌ Bad - no error handling
+async function processFile(file: TFile) {
+  const content = await this.app.workspace.read(file);
+  return await this.process(content); // May throw!
+}
+```
+
+### Validate User Input
+
+```typescript
+// ✅ Good - input validation
+function createNote(name: string) {
+  if (!name || name.trim().length === 0) {
+    throw new Error('Note name cannot be empty');
+  }
+  
+  const sanitized = name.replace(/[<>:"|?*\\]/g, '');
+  if (sanitized.length === 0) {
+    throw new Error('Note name contains only invalid characters');
+  }
+  
+  return this.app.workspace.create(`${sanitized}.md`);
+}
+
+// ❌ Bad - no validation
+function createNote(name: string) {
+  return this.app.workspace.create(`${name}.md`);
+}
+```
+
+### Use Defensive Programming
+
+```typescript
+// ✅ Good - defensive checks
+function updateStatusBar() {
+  if (!this.statusBarItem) return;
+  
+  const editor = this.app.editorRegistry.getActive();
+  if (!editor) {
+    this.statusBarItem.setText('');
+    return;
+  }
+  
+  const content = editor.getValue();
+  this.statusBarItem.setText(`${content.length} chars`);
+}
+
+// ❌ Bad - assumes everything exists
+function updateStatusBar() {
+  const editor = this.app.editorRegistry.getActive();
+  const content = editor.getValue(); // May throw!
+  this.statusBarItem.setText(`${content.length} chars`);
+}
+```
+
+## Performance
+
+### Avoid Blocking Operations
+
+```typescript
+// ✅ Good - allows UI updates
+async function processFiles(files: TFile[]) {
+  for (let i = 0; i < files.length; i++) {
+    await this.processFile(files[i]);
+    
+    // Allow UI updates every 10 files
+    if (i % 10 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+}
+
+// ❌ Bad - blocks UI
+async function processFiles(files: TFile[]) {
+  for (const file of files) {
+    await this.heavyOperation(file);
+  }
+}
+```
+
+### Debounce Frequent Operations
+
+```typescript
+// ✅ Good - debounced
+class MyPlugin extends Plugin {
+  private saveTimeout: number | null = null;
+
+  onFileChange(file: TFile) {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+    
+    this.saveTimeout = window.setTimeout(() => {
+      this.saveFile(file);
+    }, 1000);
+  }
+}
+
+// ❌ Bad - saves on every change
+class MyPlugin extends Plugin {
+  onFileChange(file: TFile) {
+    this.saveFile(file); // Called too frequently!
+  }
+}
+```
+
+### Cache Expensive Operations
+
+```typescript
+// ✅ Good - cached results
+class MyPlugin extends Plugin {
+  private cache = new Map<string, ProcessedData>();
+
+  getProcessedData(file: TFile): ProcessedData {
+    if (this.cache.has(file.path)) {
+      return this.cache.get(file.path)!;
+    }
+    
+    const data = this.expensiveOperation(file);
+    this.cache.set(file.path, data);
+    return data;
+  }
+
+  onFileModify(file: TFile) {
+    this.cache.delete(file.path); // Invalidate cache
+  }
+}
+
+// ❌ Bad - recalculates every time
+class MyPlugin extends Plugin {
+  getProcessedData(file: TFile): ProcessedData {
+    return this.expensiveOperation(file); // Slow!
+  }
+}
+```
+
+### Use Appropriate Data Structures
+
+```typescript
+// ✅ Good - Set for lookups
+const processedFiles = new Set<string>();
+processedFiles.add(file.path);
+if (processedFiles.has(file.path)) {
+  // Fast O(1) lookup
+}
+
+// ❌ Bad - Array for lookups
+const processedFiles: string[] = [];
+processedFiles.push(file.path);
+if (processedFiles.includes(file.path)) {
+  // Slow O(n) lookup
+}
+```
+
+## Resource Management
+
+### Clean Up Resources
+
+```typescript
+// ✅ Good - proper cleanup
+class MyPlugin extends Plugin {
+  private updateInterval: number | null = null;
+  private connections: Connection[] = [];
+
+  async onload() {
+    this.updateInterval = window.setInterval(() => {
+      this.update();
+    }, 1000);
+    
+    const conn = await this.connect();
+    this.connections.push(conn);
+  }
+
+  async onunload() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+    
+    for (const conn of this.connections) {
+      await conn.close();
+    }
+    this.connections = [];
+  }
+}
+
+// ❌ Bad - resources leak
+class MyPlugin extends Plugin {
+  async onload() {
+    setInterval(() => this.update(), 1000);
+    await this.connect();
+  }
+}
+```
+
+### Use registerEvent()
+
+```typescript
+// ✅ Good - automatic cleanup
+class MyPlugin extends Plugin {
+  async onload() {
+    this.registerEvent(
+      this.app.workspace.onFileCreate((file) => {
+        console.log('Created:', file.path);
+      })
+    );
+  }
+}
+
+// ❌ Bad - manual cleanup needed
+class MyPlugin extends Plugin {
+  private fileCreateRef: (() => void) | null = null;
+
+  async onload() {
+    this.fileCreateRef = this.app.workspace.onFileCreate((file) => {
+      console.log('Created:', file.path);
+    });
+  }
+
+  async onunload() {
+    if (this.fileCreateRef) {
+      this.fileCreateRef();
+    }
+  }
+}
+```
+
+### Avoid Memory Leaks
+
+```typescript
+// ✅ Good - no circular references
+class MyPlugin extends Plugin {
+  private handlers = new Map<string, () => void>();
+
+  addHandler(id: string, handler: () => void) {
+    this.handlers.set(id, handler);
+  }
+
+  removeHandler(id: string) {
+    this.handlers.delete(id);
+  }
+
+  async onunload() {
+    this.handlers.clear();
+  }
+}
+
+// ❌ Bad - potential memory leak
+class MyPlugin extends Plugin {
+  private handlers: Array<{plugin: MyPlugin; fn: () => void}> = [];
+
+  addHandler(fn: () => void) {
+    this.handlers.push({plugin: this, fn}); // Circular reference!
+  }
+}
+```
+
+## User Experience
+
+### Provide Clear Feedback
+
+```typescript
+// ✅ Good - clear feedback
+this.addCommand({
+  id: 'export-notes',
+  name: 'Export Notes',
+  callback: async () => {
+    this.showNotice('Exporting notes...');
+    
+    try {
+      const count = await this.exportNotes();
+      this.showNotice(`Exported ${count} notes successfully!`);
+    } catch (error) {
+      this.showNotice('Export failed. Check console for details.');
+      console.error('Export error:', error);
+    }
+  },
+});
+
+// ❌ Bad - no feedback
+this.addCommand({
+  id: 'export-notes',
+  name: 'Export Notes',
+  callback: async () => {
+    await this.exportNotes(); // Silent operation
+  },
+});
+```
+
+### Use Descriptive Names
+
+```typescript
+// ✅ Good - descriptive names
+this.addCommand({
+  id: 'insert-current-date',
+  name: 'Insert Current Date',
+  editorCallback: (editor) => {
+    editor.replaceSelection(new Date().toLocaleDateString());
+  },
+});
+
+// ❌ Bad - vague names
+this.addCommand({
+  id: 'insert',
+  name: 'Insert',
+  editorCallback: (editor) => {
+    editor.replaceSelection(new Date().toLocaleDateString());
+  },
+});
+```
+
+### Provide Sensible Defaults
+
+```typescript
+// ✅ Good - sensible defaults
+interface Settings {
+  enabled: boolean;
+  fontSize: number;
+  theme: 'light' | 'dark' | 'auto';
+}
+
+const DEFAULT_SETTINGS: Settings = {
+  enabled: true,
+  fontSize: 14,
+  theme: 'auto',
+};
+
+// ❌ Bad - poor defaults
+const DEFAULT_SETTINGS: Settings = {
+  enabled: false, // Disabled by default?
+  fontSize: 50,   // Too large!
+  theme: 'light', // Ignores system preference
+};
+```
+
+### Include Helpful Descriptions
+
+```typescript
+// ✅ Good - detailed descriptions
+new Setting(containerEl)
+  .setName('Auto-save interval')
+  .setDesc('How often to automatically save (in seconds). Set to 0 to disable.')
+  .addSlider(slider => slider
+    .setLimits(0, 300, 5)
+    .setValue(this.settings.autoSaveInterval)
+  );
+
+// ❌ Bad - no description
+new Setting(containerEl)
+  .setName('Interval')
+  .addSlider(slider => slider
+    .setLimits(0, 300, 5)
+    .setValue(this.settings.autoSaveInterval)
+  );
+```
+
+## Code Organization
+
+### Separate Concerns
+
+```typescript
+// ✅ Good - separated concerns
+class DataProcessor {
+  process(data: string): ProcessedData {
+    // Pure processing logic
+  }
+}
+
+class UIManager {
+  constructor(private app: App) {}
+  
+  updateDisplay(data: ProcessedData) {
+    // UI logic
+  }
+}
+
+class MyPlugin extends Plugin {
+  private processor = new DataProcessor();
+  private ui: UIManager;
+
+  async onload() {
+    this.ui = new UIManager(this.app);
+  }
+}
+
+// ❌ Bad - mixed concerns
+class MyPlugin extends Plugin {
+  processAndDisplay(data: string) {
+    // Processing logic
+    const processed = data.toUpperCase();
+    
+    // UI logic
+    this.statusBar.setText(processed);
+    
+    // More processing
+    const words = processed.split(' ');
+    
+    // More UI
+    this.showNotice(`${words.length} words`);
+  }
+}
+```
+
+### Use Small, Focused Functions
+
+```typescript
+// ✅ Good - small, focused functions
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(w => w.length > 0).length;
+}
+
+function countCharacters(text: string, includeSpaces: boolean): number {
+  return includeSpaces ? text.length : text.replace(/\s/g, '').length;
+}
+
+function formatCount(count: number, label: string): string {
+  return `${count} ${count === 1 ? label : label + 's'}`;
+}
+
+// ❌ Bad - large, monolithic function
+function processText(text: string, settings: Settings): string {
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  const wordCount = words.length;
+  const charCount = settings.countSpaces ? text.length : text.replace(/\s/g, '').length;
+  const wordLabel = wordCount === 1 ? 'word' : 'words';
+  const charLabel = charCount === 1 ? 'char' : 'chars';
+  const parts = [];
+  if (settings.showWords) parts.push(`${wordCount} ${wordLabel}`);
+  if (settings.showChars) parts.push(`${charCount} ${charLabel}`);
+  return parts.join(' • ');
+}
+```
+
+### Document Complex Logic
+
+```typescript
+// ✅ Good - documented
+/**
+ * Finds broken links in the workspace.
+ * 
+ * A link is considered broken if:
+ * 1. The target file doesn't exist
+ * 2. The target file has been deleted
+ * 3. The link points to an invalid path
+ * 
+ * @returns Array of broken links with file and position info
+ */
+async function findBrokenLinks(): Promise<BrokenLink[]> {
+  // Implementation
+}
+
+// ❌ Bad - no documentation
+async function findBrokenLinks(): Promise<BrokenLink[]> {
+  // Complex logic with no explanation
+}
+```
+
+## Security
+
+### Sanitize File Paths
+
+```typescript
+// ✅ Good - sanitized paths
+function createFile(name: string) {
+  const sanitized = name.replace(/[\\/:<>"'|?*]/g, '');
+  const safe = sanitized.substring(0, 255); // Limit length
+  return this.app.workspace.create(`${safe}.md`);
+}
+
+// ❌ Bad - unsanitized input
+function createFile(name: string) {
+  return this.app.workspace.create(`${name}.md`); // Unsafe!
+}
+```
+
+### Validate External Input
+
+```typescript
+// ✅ Good - validated input
+async function importFromUrl(url: string) {
+  try {
+    new URL(url); // Validate URL
+  } catch {
+    throw new Error('Invalid URL');
+  }
+  
+  if (!url.startsWith('https://')) {
+    throw new Error('Only HTTPS URLs are allowed');
+  }
+  
+  const response = await fetch(url);
+  return response.text();
+}
+
+// ❌ Bad - no validation
+async function importFromUrl(url: string) {
+  const response = await fetch(url); // Unsafe!
+  return response.text();
+}
+```
+
+### Handle Sensitive Data
+
+```typescript
+// ✅ Good - encrypted storage
+interface Settings {
+  apiKey: string; // Should be encrypted
+}
+
+async saveSettings() {
+  const encrypted = await this.encrypt(this.settings.apiKey);
+  await this.saveData({ ...this.settings, apiKey: encrypted });
+}
+
+// ❌ Bad - plaintext storage
+async saveSettings() {
+  await this.saveData(this.settings); // API key in plaintext!
+}
+```
+
+## Testing
+
+### Write Testable Code
+
+```typescript
+// ✅ Good - testable
+export function processContent(content: string): string {
+  return content.toUpperCase();
+}
+
+export class MyPlugin extends Plugin {
+  async processFile(file: TFile) {
+    const content = await this.app.workspace.read(file);
+    return processContent(content);
+  }
+}
+
+// ❌ Bad - not testable
+export class MyPlugin extends Plugin {
+  async processFile(file: TFile) {
+    const content = await this.app.workspace.read(file);
+    return content.toUpperCase(); // Can't test in isolation
+  }
+}
+```
+
+### Test Edge Cases
+
+```typescript
+describe('countWords', () => {
+  it('handles normal input', () => {
+    expect(countWords('hello world')).toBe(2);
+  });
+
+  it('handles empty string', () => {
+    expect(countWords('')).toBe(0);
+  });
+
+  it('handles multiple spaces', () => {
+    expect(countWords('hello    world')).toBe(2);
+  });
+
+  it('handles only spaces', () => {
+    expect(countWords('   ')).toBe(0);
+  });
+
+  it('handles unicode', () => {
+    expect(countWords('hello 世界')).toBe(2);
+  });
+});
+```
+
+## Documentation
+
+### Maintain README
+
+Include:
+- Clear description
+- Installation instructions
+- Usage examples
+- Configuration options
+- Known issues
+- Contributing guidelines
+
+### Document API
+
+```typescript
+/**
+ * Processes a file and returns the result.
+ * 
+ * @param file - The file to process
+ * @param options - Processing options
+ * @returns Processed content or null on error
+ * @throws {Error} If file cannot be read
+ * 
+ * @example
+ * ```typescript
+ * const result = await processFile(file, { format: 'markdown' });
+ * ```
+ */
+export async function processFile(
+  file: TFile,
+  options: ProcessOptions
+): Promise<string | null> {
+  // Implementation
+}
+```
+
+### Keep CHANGELOG
+
+Maintain a CHANGELOG.md:
+
+```markdown
+# Changelog
+
+## [1.1.0] - 2024-01-15
+
+### Added
+- New export format option
+- Batch processing command
+
+### Fixed
+- Memory leak in file watcher
+- Crash on empty files
+
+### Changed
+- Improved performance by 50%
+
+## [1.0.0] - 2024-01-01
+
+- Initial release
+```
+
+## Related
+
+- [Testing](/plugins/testing) - Testing strategies
+- [Community Plugins](/plugins/community-plugins) - Publishing
+- [Plugin Class](/plugins/plugin-class) - Plugin API

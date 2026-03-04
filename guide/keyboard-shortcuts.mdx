@@ -1,0 +1,202 @@
+---
+title: Keyboard Shortcuts
+description: Complete list of keyboard shortcuts in Inkdown for efficient editing and navigation
+---
+
+# Keyboard Shortcuts
+
+Inkdown is designed for keyboard-centric workflows. All shortcuts are customizable through **Settings > Keyboard Shortcuts**.
+
+<Note>
+  **Mod** refers to `Cmd` on macOS and `Ctrl` on Windows/Linux.
+</Note>
+
+## Application Shortcuts
+
+### General
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+,` | Open Settings | Open the settings dialog |
+| `Mod+\` | Toggle Sidebar | Show or hide the file explorer sidebar |
+| `Mod+E` | Toggle View Mode | Switch between editor, side-by-side, and preview modes |
+| `Mod+Shift+O` | Open Workspace | Open a different workspace folder |
+
+### Tab Management
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+N` | New Note | Create a new note |
+| `Mod+T` | New Tab | Open a new editor tab |
+| `Mod+W` | Close Tab | Close the current tab |
+| `Mod+S` | Save File | Save the current file |
+| `Mod+Tab` | Next Tab | Switch to the next tab |
+| `Mod+Shift+Tab` | Previous Tab | Switch to the previous tab |
+| `Alt+1` to `Alt+9` | Switch to Tab 1-9 | Jump directly to a specific tab |
+
+## Editor Shortcuts
+
+### Text Formatting
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+B` | Toggle Bold | Make selected text **bold** |
+| `Mod+I` | Toggle Italic | Make selected text *italic* |
+| `Mod+Shift+S` | Toggle Strikethrough | Make selected text ~~strikethrough~~ |
+| `Mod+Shift+E` | Toggle Inline Code | Make selected text `inline code` |
+| `Mod+Shift+H` | Toggle Highlight | Highlight selected text |
+
+### Links and Images
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+K` | Insert Link | Insert a markdown link |
+| `Mod+Shift+K` | Insert Image | Insert a markdown image |
+
+### Headings
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+Shift+1` | Insert Header 1 | Insert or convert to `# Heading 1` |
+| `Mod+Shift+2` | Insert Header 2 | Insert or convert to `## Heading 2` |
+| `Mod+Shift+3` | Insert Header 3 | Insert or convert to `### Heading 3` |
+| `Mod+Shift+4` | Insert Header 4 | Insert or convert to `#### Heading 4` |
+| `Mod+Shift+5` | Insert Header 5 | Insert or convert to `##### Heading 5` |
+| `Mod+Shift+6` | Insert Header 6 | Insert or convert to `###### Heading 6` |
+
+### Lists
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+Shift+8` | Toggle Bullet List | Create or toggle a bullet list |
+| `Mod+Shift+7` | Toggle Numbered List | Create or toggle a numbered list |
+| `Mod+L` | Toggle Task List | Create or toggle a task list with checkboxes |
+
+### Blocks
+
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Mod+Shift+.` | Toggle Blockquote | Create or toggle a blockquote |
+| `Mod+Shift+C` | Insert Code Block | Insert a fenced code block |
+| `Mod+Shift+-` | Insert Horizontal Rule | Insert a horizontal rule (`---`) |
+| `Mod+Shift+T` | Insert Table | Insert a markdown table template |
+
+## Editor Suggestions
+
+When an autocomplete suggestion popup is visible:
+
+| Shortcut | Action |
+|----------|--------|
+| `↑` | Select previous suggestion |
+| `↓` | Select next suggestion |
+| `Enter` | Accept selected suggestion |
+| `Escape` | Close suggestion popup |
+
+## History Commands
+
+Standard editing history is available:
+
+| Shortcut | Command |
+|----------|--------|
+| `Mod+Z` | Undo |
+| `Mod+Shift+Z` or `Mod+Y` | Redo |
+
+## Customizing Shortcuts
+
+All keyboard shortcuts can be customized to match your workflow:
+
+1. Open **Settings** with `Mod+,`
+2. Navigate to **Keyboard Shortcuts**
+3. Click on any shortcut to edit it
+4. Press your desired key combination
+5. Click **Save** to apply changes
+
+### Shortcut Conflicts
+
+Inkdown automatically detects and prevents shortcut conflicts:
+
+- **User customizations** take highest priority
+- **Plugin shortcuts** override core shortcuts
+- **Core shortcuts** have lowest priority
+
+If a conflict is detected, you'll be notified and asked to choose a different key combination.
+
+### Resetting Shortcuts
+
+To reset a shortcut to its default value:
+
+1. Navigate to **Settings > Keyboard Shortcuts**
+2. Find the shortcut you want to reset
+3. Click the **Reset** button next to it
+4. The shortcut will revert to its default key combination
+
+## Priority System
+
+Shortcuts are executed based on context:
+
+### Editor Context
+
+Shortcuts starting with `editor:` only work when the editor has focus. This prevents conflicts with other UI elements.
+
+### Global Shortcuts
+
+These shortcuts work anywhere in the application:
+
+- File operations (`Mod+N`, `Mod+S`)
+- Tab management (`Mod+W`, `Mod+T`)
+- Application commands (`Mod+,`, `Mod+\`)
+
+### Input Protection
+
+When typing in input fields (except the editor), most shortcuts are disabled to prevent accidental command execution. Only global shortcuts remain active.
+
+## Command Format
+
+Shortcuts in Inkdown use the following format:
+
+```typescript
+['Mod', 'Shift', 'K']  // Mod+Shift+K
+['Alt', '1']            // Alt+1
+['Mod', 'B']            // Mod+B
+```
+
+- **Mod**: `Cmd` on macOS, `Ctrl` on Windows/Linux
+- **Shift**: Shift modifier
+- **Alt**: Alt/Option modifier
+- **Ctrl**: Control key (separate from Mod on macOS)
+
+## Vim Mode Keybindings
+
+When Vim mode is enabled, additional Vim keybindings become available. See [Editor Basics](/guide/editor-basics#vim-mode) for details on Vim mode.
+
+Vim keybindings work alongside standard shortcuts, allowing you to use both systems simultaneously.
+
+## Plugin Commands
+
+Plugins can register their own keyboard shortcuts. These appear in the **Keyboard Shortcuts** settings alongside core commands.
+
+Plugin shortcuts follow the same priority system and can be customized just like core shortcuts.
+
+## Tips for Efficiency
+
+1. **Learn Mod+K first**: The quick command palette (if available) provides access to all commands
+2. **Use tab switching**: `Alt+1` through `Alt+9` for fast navigation
+3. **Master formatting shortcuts**: `Mod+B`, `Mod+I`, `Mod+K` are used constantly
+4. **Customize for your workflow**: Don't hesitate to change shortcuts that don't match your habits
+5. **Print this page**: Keep a reference handy while learning the shortcuts
+
+## Keyboard-Centric Philosophy
+
+Inkdown is designed with keyboard efficiency in mind:
+
+- Every action has a keyboard shortcut
+- Mouse usage is optional for most tasks
+- Vim mode provides modal editing for power users
+- Customization allows personal optimization
+- Consistent key patterns across similar commands
+
+## Next Steps
+
+- Configure your editor settings in [Editor Basics](/guide/editor-basics)
+- Customize the appearance with [Themes](/guide/themes)
+- Set up [Sync](/guide/sync) for multi-device access

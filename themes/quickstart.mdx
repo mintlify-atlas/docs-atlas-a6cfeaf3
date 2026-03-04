@@ -1,0 +1,263 @@
+---
+title: Quick Start Guide
+description: Create your first Inkdown theme in minutes
+---
+
+This guide will walk you through creating a custom theme for Inkdown from scratch.
+
+## Step 1: Create Theme Directory
+
+Custom themes are stored in your Inkdown config directory:
+
+```bash
+# macOS
+cd ~/Library/Application\ Support/com.furqas.inkdown/themes/
+
+# Linux
+cd ~/.config/inkdown/themes/
+
+# Windows
+cd %APPDATA%/inkdown/themes/
+```
+
+Create a new directory for your theme:
+
+```bash
+mkdir my-awesome-theme
+cd my-awesome-theme
+```
+
+## Step 2: Create manifest.json
+
+Every theme needs a manifest file with metadata:
+
+```json
+{
+  "name": "My Awesome Theme",
+  "author": "Your Name",
+  "version": "1.0.0",
+  "description": "A beautiful custom theme for Inkdown",
+  "homepage": "https://github.com/yourusername/my-awesome-theme",
+  "modes": ["dark", "light"]
+}
+```
+
+### Manifest Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Display name shown in theme browser |
+| `author` | Yes | Theme author's name |
+| `version` | Yes | Semantic version (e.g., "1.0.0") |
+| `description` | No | Brief description of the theme |
+| `homepage` | No | URL to theme repository or website |
+| `modes` | Yes | Supported modes: `["dark"]`, `["light"]`, or `["dark", "light"]` |
+
+## Step 3: Create CSS Files
+
+Create CSS files for each mode your theme supports:
+
+### For Dark Mode: `dark.css`
+
+```css
+.theme-dark {
+  /* Background Colors */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242424;
+  --bg-sidebar: #1a1a1a;
+  --bg-tertiary: #2e2e2e;
+
+  /* Text Colors */
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --text-muted: #707070;
+
+  /* Border Colors */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.04);
+
+  /* Primary/Accent Colors */
+  --color-primary: #007acc;
+  --color-primary-hover: #005a9e;
+
+  /* Editor */
+  --editor-bg: #1a1a1a;
+  --editor-fg: #e0e0e0;
+  --editor-selection: rgba(0, 122, 204, 0.4);
+  --editor-cursor: var(--color-primary);
+  --editor-active-line: #2a2a2a;
+
+  /* Headings */
+  --heading-h1: #569cd6;
+  --heading-h2: #4ec9b0;
+  --heading-h3: #9cdcfe;
+  --heading-h4: #dcdcaa;
+  --heading-h5: #c586c0;
+  --heading-h6: #ce9178;
+
+  /* Syntax Highlighting */
+  --syntax-bold: #f48771;
+  --syntax-italic: #4ec9b0;
+  --syntax-link: #3794ff;
+  --syntax-code: #c586c0;
+
+  /* Code Blocks */
+  --code-bg: #0d1117;
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-comment: #8b949e;
+  --code-function: #d2a8ff;
+}
+```
+
+### For Light Mode: `light.css` (optional)
+
+```css
+.theme-light {
+  /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-sidebar: #fafbfc;
+  --bg-tertiary: #eaeef2;
+
+  /* Text Colors */
+  --text-primary: #24292f;
+  --text-secondary: #57606a;
+  --text-muted: #8c959f;
+
+  /* Border Colors */
+  --border-color: rgba(0, 0, 0, 0.06);
+  --border-secondary: rgba(0, 0, 0, 0.05);
+
+  /* Primary/Accent Colors */
+  --color-primary: #0969da;
+  --color-primary-hover: #0550ae;
+
+  /* Editor */
+  --editor-bg: #ffffff;
+  --editor-fg: #24292f;
+  --editor-selection: rgba(9, 105, 218, 0.2);
+  --editor-cursor: var(--color-primary);
+  --editor-active-line: #e6f3ff;
+
+  /* Headings */
+  --heading-h1: #0969da;
+  --heading-h2: #1a7f37;
+  --heading-h3: #0550ae;
+  --heading-h4: #953800;
+  --heading-h5: #8250df;
+  --heading-h6: #57606a;
+
+  /* Syntax Highlighting */
+  --syntax-bold: #cf222e;
+  --syntax-italic: #1a7f37;
+  --syntax-link: #0969da;
+  --syntax-code: #8250df;
+
+  /* Code Blocks */
+  --code-bg: #f6f8fa;
+  --code-keyword: #cf222e;
+  --code-string: #0a3069;
+  --code-comment: #6e7781;
+  --code-function: #8250df;
+}
+```
+
+## Step 4: Test Your Theme
+
+1. Restart Inkdown or reload custom themes
+2. Open Settings → Appearance → Themes
+3. Your theme should appear in the list
+4. Click to activate it
+
+## Step 5: Iterate and Refine
+
+As you develop your theme:
+
+1. **Edit CSS files** in your favorite editor
+2. **Reload themes** in Inkdown settings to see changes
+3. **Test with different content** - try headings, code blocks, lists, etc.
+4. **Check both modes** if you support light and dark
+
+## Tips for Theme Development
+
+<AccordionGroup>
+  <Accordion title="Start with an existing theme">
+    Copy one of the built-in theme CSS files as a starting point. The default themes use all available variables.
+  </Accordion>
+
+  <Accordion title="Test with real content">
+    Create a test note with all markdown elements: headings, bold, italic, links, code blocks, lists, tables, callouts, etc.
+  </Accordion>
+
+  <Accordion title="Use CSS variable references">
+    Reference other variables to maintain consistency:
+    ```css
+    --editor-cursor: var(--color-primary);
+    --button-primary-bg: var(--color-primary);
+    ```
+  </Accordion>
+
+  <Accordion title="Check contrast ratios">
+    Ensure text is readable against backgrounds. Aim for at least 4.5:1 contrast ratio for normal text.
+  </Accordion>
+
+  <Accordion title="Consider accessibility">
+    Test your theme with different vision modes. Avoid relying solely on color to convey information.
+  </Accordion>
+</AccordionGroup>
+
+## Example: Minimal Dark Theme
+
+Here's a minimal theme that only customizes the essentials:
+
+```css
+.theme-dark {
+  /* Core colors */
+  --bg-primary: #1e1e1e;
+  --text-primary: #d4d4d4;
+  --color-primary: #4fc3f7;
+  
+  /* Editor */
+  --editor-bg: var(--bg-primary);
+  --editor-fg: var(--text-primary);
+  --editor-selection: rgba(79, 195, 247, 0.3);
+  --editor-cursor: var(--color-primary);
+  
+  /* Headings */
+  --heading-h1: #4fc3f7;
+  --heading-h2: #81c784;
+  --heading-h3: #ffb74d;
+  
+  /* Syntax */
+  --syntax-bold: #f48fb1;
+  --syntax-italic: #ce93d8;
+  --syntax-link: var(--color-primary);
+  --syntax-code: #ba68c8;
+  
+  /* Code blocks */
+  --code-bg: #252526;
+  --code-keyword: #569cd6;
+  --code-string: #ce9178;
+  --code-comment: #6a9955;
+}
+```
+
+Variables you don't define will inherit from the default theme.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CSS Variables Reference" icon="list" href="/themes/css-variables">
+    Complete list of all available theme variables
+  </Card>
+  <Card title="CSS Architecture" icon="sitemap" href="/themes/css-architecture">
+    Learn how CSS is organized and applied
+  </Card>
+  <Card title="Share Your Theme" icon="share" href="/themes/community-themes">
+    Publish your theme for others to use
+  </Card>
+  <Card title="Best Practices" icon="star" href="/themes/best-practices">
+    Tips for creating great themes
+  </Card>
+</CardGroup>

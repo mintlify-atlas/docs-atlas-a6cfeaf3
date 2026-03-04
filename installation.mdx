@@ -1,0 +1,545 @@
+---
+title: Installation
+description: Detailed installation instructions for macOS, Windows, Linux, and building from source
+---
+
+Inkdown is available for **macOS**, **Windows**, and **Linux**. Choose your platform below for detailed installation instructions.
+
+## Platform Downloads
+
+<CardGroup cols={3}>
+  <Card title="macOS" icon="apple">
+    Download `.dmg` installer
+    
+    - Apple Silicon (M1/M2/M3)
+    - Intel (x86_64)
+  </Card>
+  
+  <Card title="Windows" icon="windows">
+    Download `.msi` installer
+    
+    - 64-bit (x86_64)
+  </Card>
+  
+  <Card title="Linux" icon="linux">
+    Download `.AppImage`
+    
+    - Universal binary
+  </Card>
+</CardGroup>
+
+<Note>
+  Download the latest release from the [GitHub Releases](https://github.com/inkdown/inkdown/releases) page.
+</Note>
+
+---
+
+## macOS Installation
+
+<Steps>
+  <Step title="Download">
+    Download the appropriate `.dmg` file for your Mac:
+
+    - **Apple Silicon** (M1, M2, M3): `Inkdown-aarch64.dmg`
+    - **Intel**: `Inkdown-x86_64.dmg`
+
+    <Tip>
+      Not sure which Mac you have? Click the Apple menu → About This Mac. Look for "Chip" (Apple Silicon) or "Processor" (Intel).
+    </Tip>
+  </Step>
+
+  <Step title="Install">
+    1. Open the downloaded `.dmg` file
+    2. Drag the Inkdown icon to your Applications folder
+    3. Eject the disk image
+
+    ```bash
+    # Optional: Install via command line
+    cp -r /Volumes/Inkdown/Inkdown.app /Applications/
+    ```
+  </Step>
+
+  <Step title="First Launch">
+    Since Inkdown is not from the App Store, you need to bypass Gatekeeper on first launch:
+
+    1. Right-click (or Control-click) on Inkdown in Applications
+    2. Select **"Open"**
+    3. Click **"Open"** in the security dialog
+
+    <Warning>
+      If you see "Inkdown is damaged", run this command:
+      ```bash
+      xattr -cr /Applications/Inkdown.app
+      ```
+    </Warning>
+  </Step>
+
+  <Step title="Verify Installation">
+    Launch Inkdown from Applications or Spotlight (`Cmd + Space`, type "Inkdown").
+
+    You should see the welcome screen prompting you to open or create a workspace.
+  </Step>
+</Steps>
+
+### macOS Requirements
+
+- **macOS 10.15 (Catalina)** or later
+- **50 MB** of disk space
+
+---
+
+## Windows Installation
+
+<Steps>
+  <Step title="Download">
+    Download the `.msi` installer:
+
+    - **64-bit**: `Inkdown-x86_64.msi`
+
+    <Note>
+      Inkdown requires Windows 10 or later (64-bit).
+    </Note>
+  </Step>
+
+  <Step title="Run Installer">
+    1. Double-click the downloaded `.msi` file
+    2. If you see a security warning, click **"More info"** → **"Run anyway"**
+    3. Follow the installation wizard:
+       - Accept the license agreement
+       - Choose installation location (default: `C:\Program Files\Inkdown`)
+       - Click **"Install"**
+
+    <Tip>
+      The installer may require administrator privileges.
+    </Tip>
+  </Step>
+
+  <Step title="Launch Inkdown">
+    After installation:
+
+    - Launch from Start Menu → Inkdown
+    - Or run from command line:
+    ```cmd
+    "C:\Program Files\Inkdown\Inkdown.exe"
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    The Inkdown window should open with the workspace selection screen.
+  </Step>
+</Steps>
+
+### Windows Requirements
+
+- **Windows 10** (64-bit) or later
+- **50 MB** of disk space
+- **WebView2** (automatically installed by the installer)
+
+<Accordion title="Troubleshooting Windows Installation">
+  **"App can't run on your PC"**
+  - Make sure you downloaded the 64-bit version
+  - Check that you're running Windows 10 or later
+
+  **"Windows protected your PC" warning**
+  - Click "More info"
+  - Click "Run anyway"
+  - This appears because Inkdown is not yet signed with a Windows certificate
+
+  **WebView2 installation fails**
+  - Download and install [Microsoft Edge WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) manually
+</Accordion>
+
+---
+
+## Linux Installation
+
+<Steps>
+  <Step title="Download">
+    Download the `.AppImage` file:
+
+    - **Universal**: `Inkdown-x86_64.AppImage`
+
+    The AppImage is a universal binary that runs on most Linux distributions.
+  </Step>
+
+  <Step title="Make Executable">
+    Make the AppImage executable:
+
+    ```bash
+    chmod +x Inkdown-*.AppImage
+    ```
+  </Step>
+
+  <Step title="Run Inkdown">
+    Run the AppImage:
+
+    ```bash
+    ./Inkdown-*.AppImage
+    ```
+
+    <Tip>
+      You can move the AppImage to `~/Applications` or `/opt` for easier access.
+    </Tip>
+  </Step>
+
+  <Step title="Optional: Desktop Integration">
+    To add Inkdown to your application menu:
+
+    ```bash
+    # Install AppImageLauncher (recommended)
+    # Ubuntu/Debian
+    sudo apt install appimagelauncher
+
+    # Arch Linux
+    yay -S appimagelauncher
+
+    # Or manually create desktop entry
+    cat > ~/.local/share/applications/inkdown.desktop <<EOF
+    [Desktop Entry]
+    Name=Inkdown
+    Exec=/path/to/Inkdown.AppImage
+    Icon=inkdown
+    Type=Application
+    Categories=Office;TextEditor;
+    EOF
+    ```
+  </Step>
+</Steps>
+
+### Linux Requirements
+
+- **64-bit Linux** distribution
+- **GLIBC 2.31** or later
+- **GTK 3** or later
+- **50 MB** of disk space
+
+### Tested Distributions
+
+<AccordionGroup>
+  <Accordion title="Ubuntu / Debian">
+    ```bash
+    # Install dependencies (if needed)
+    sudo apt install libgtk-3-0 libwebkit2gtk-4.0-37
+
+    # Run Inkdown
+    chmod +x Inkdown-*.AppImage
+    ./Inkdown-*.AppImage
+    ```
+
+    **Tested on:**
+    - Ubuntu 20.04, 22.04, 24.04
+    - Debian 11, 12
+  </Accordion>
+
+  <Accordion title="Fedora / RHEL">
+    ```bash
+    # Install dependencies (if needed)
+    sudo dnf install gtk3 webkit2gtk3
+
+    # Run Inkdown
+    chmod +x Inkdown-*.AppImage
+    ./Inkdown-*.AppImage
+    ```
+
+    **Tested on:**
+    - Fedora 38, 39, 40
+    - RHEL 9
+  </Accordion>
+
+  <Accordion title="Arch Linux">
+    ```bash
+    # Install dependencies (if needed)
+    sudo pacman -S gtk3 webkit2gtk
+
+    # Run Inkdown
+    chmod +x Inkdown-*.AppImage
+    ./Inkdown-*.AppImage
+    ```
+
+    **Tested on:**
+    - Arch Linux (rolling)
+    - Manjaro
+  </Accordion>
+</AccordionGroup>
+
+<Accordion title="Troubleshooting Linux Installation">
+  **"No such file or directory" when running AppImage**
+  - Install FUSE:
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install fuse libfuse2
+
+    # Arch
+    sudo pacman -S fuse2
+    ```
+
+  **AppImage won't run**
+  - Extract and run directly:
+    ```bash
+    ./Inkdown-*.AppImage --appimage-extract
+    ./squashfs-root/AppRun
+    ```
+
+  **Missing dependencies**
+  - Check for missing libraries:
+    ```bash
+    ldd Inkdown-*.AppImage
+    ```
+</Accordion>
+
+---
+
+## Building from Source
+
+Advanced users can build Inkdown from source.
+
+<Warning>
+  Building from source requires development tools and can take 10-20 minutes.
+</Warning>
+
+### Prerequisites
+
+<CodeGroup>
+```bash macOS
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install dependencies
+brew install node
+curl -fsSL https://bun.sh/install | bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+```bash Linux
+# Install Node.js (v18+)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install nodejs
+
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install build dependencies
+sudo apt install build-essential libssl-dev libgtk-3-dev libwebkit2gtk-4.0-dev
+```
+
+```powershell Windows
+# Install Node.js from https://nodejs.org/
+
+# Install Bun
+powershell -c "irm bun.sh/install.ps1|iex"
+
+# Install Rust
+# Download and run: https://win.rustup.rs/
+
+# Install Visual Studio Build Tools
+# Download from: https://visualstudio.microsoft.com/downloads/
+# Select "Desktop development with C++"
+```
+</CodeGroup>
+
+### Build Steps
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/inkdown/inkdown.git
+    cd inkdown
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    ```bash
+    bun install
+    ```
+
+    This installs all Node.js and Rust dependencies.
+  </Step>
+
+  <Step title="Build Desktop App">
+    ```bash
+    # Development build (with dev tools)
+    bun run dev
+
+    # Production build
+    bun run build
+    ```
+
+    The production build creates installers in `apps/desktop/src-tauri/target/release/bundle/`.
+  </Step>
+
+  <Step title="Run Development Server">
+    For active development with hot reload:
+
+    ```bash
+    bun tauri dev
+    ```
+  </Step>
+</Steps>
+
+### Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start development server |
+| `bun run build` | Build for production |
+| `bun run typecheck` | TypeScript type checking |
+| `bun run lint` | Run linter (Biome) |
+| `bun run check` | Run all checks (lint + typecheck) |
+| `bun tauri dev` | Start Tauri dev server with hot reload |
+
+### Project Structure
+
+```
+inkdown/
+├── apps/
+│   └── desktop/          # Tauri desktop app
+│       ├── src/          # React frontend
+│       └── src-tauri/    # Rust backend
+├── packages/
+│   ├── core/             # @inkdown/core - Core logic
+│   ├── ui/               # @inkdown/ui - Components
+│   ├── plugins/          # @inkdown/plugins - Built-in plugins
+│   └── native-tauri/     # @inkdown/native-tauri - Tauri bindings
+└── docs/                 # Documentation
+```
+
+<Accordion title="Build Troubleshooting">
+  **Rust compilation fails**
+  - Update Rust: `rustup update`
+  - Check Rust version: `rustc --version` (should be 1.70+)
+
+  **Node/Bun dependency issues**
+  - Clear cache: `bun pm cache rm`
+  - Reinstall: `rm -rf node_modules && bun install`
+
+  **Tauri build fails**
+  - Check Tauri prerequisites: [https://tauri.app/v1/guides/getting-started/prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites)
+  - Make sure all system dependencies are installed
+
+  **TypeScript errors**
+  - Run type check: `bun run typecheck`
+  - Regenerate types: `bun run typecheck:packages`
+</Accordion>
+
+---
+
+## Verifying Your Installation
+
+After installation, verify everything works:
+
+<Steps>
+  <Step title="Launch Inkdown">
+    Open Inkdown from your application launcher or command line.
+  </Step>
+
+  <Step title="Create Test Workspace">
+    Create or open a workspace folder when prompted.
+  </Step>
+
+  <Step title="Create Test Note">
+    1. Press `Cmd/Ctrl + N` to create a new note
+    2. Type some markdown:
+    ```markdown
+    # Test Note
+    
+    This is a **test** note.
+    ```
+    3. Toggle preview with `Cmd/Ctrl + E`
+  </Step>
+
+  <Step title="Check Version">
+    Open Settings (`Cmd/Ctrl + ,`) and check the version number at the bottom.
+  </Step>
+</Steps>
+
+<Tip>
+  If you encounter any issues, check the [GitHub Issues](https://github.com/inkdown/inkdown/issues) or ask for help in [GitHub Discussions](https://github.com/inkdown/inkdown/discussions).
+</Tip>
+
+---
+
+## Updating Inkdown
+
+Inkdown does not have auto-update yet. To update:
+
+1. Check the [Releases page](https://github.com/inkdown/inkdown/releases) for new versions
+2. Download the latest installer for your platform
+3. Install over your existing installation
+
+<Note>
+  Your workspace and settings are stored separately and will be preserved during updates.
+</Note>
+
+---
+
+## Uninstalling Inkdown
+
+<Tabs>
+  <Tab title="macOS">
+    1. Quit Inkdown
+    2. Drag Inkdown.app from Applications to Trash
+    3. Empty Trash
+
+    **Remove settings and data:**
+    ```bash
+    rm -rf ~/Library/Application\ Support/com.inkdown.app
+    ```
+  </Tab>
+
+  <Tab title="Windows">
+    1. Open Settings → Apps → Installed apps
+    2. Find Inkdown in the list
+    3. Click the three dots → Uninstall
+
+    **Remove settings and data:**
+    ```cmd
+    rmdir /s "%APPDATA%\com.inkdown.app"
+    ```
+  </Tab>
+
+  <Tab title="Linux">
+    1. Delete the AppImage file:
+    ```bash
+    rm Inkdown-*.AppImage
+    ```
+
+    **Remove settings and data:**
+    ```bash
+    rm -rf ~/.config/com.inkdown.app
+    ```
+
+    **Remove desktop entry (if created):**
+    ```bash
+    rm ~/.local/share/applications/inkdown.desktop
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Uninstalling Inkdown does **not** delete your workspace or notes. Those are stored in the folder you selected as your workspace.
+</Warning>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Learn the basics and create your first note
+  </Card>
+  
+  <Card title="Keyboard Shortcuts" icon="keyboard" href="/guide/keyboard-shortcuts">
+    Master keyboard shortcuts for productivity
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/architecture/config-system">
+    Customize Inkdown to your preferences
+  </Card>
+  
+  <Card title="Contributing" icon="code-branch" href="https://github.com/inkdown/inkdown/blob/main/CONTRIBUTING.md">
+    Build Inkdown from source and contribute
+  </Card>
+</CardGroup>

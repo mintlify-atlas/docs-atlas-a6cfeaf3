@@ -1,0 +1,490 @@
+---
+title: Editor Suggest
+description: Implement autocomplete and suggestion providers
+---
+
+## Overview
+
+The `EditorSuggest` class allows you to create autocomplete/suggestion providers that trigger based on specific patterns in the editor.
+
+```typescript
+import { EditorSuggest } from '@inkdown/api';
+
+class MyEditorSuggest extends EditorSuggest<string> {
+  onTrigger(cursor, editor, file) {
+    // Detect trigger pattern (e.g., "@")
+    // Return trigger info or null
+  }
+
+  getSuggestions(context) {
+    // Return list of suggestions
+    return ['suggestion1', 'suggestion2'];
+  }
+
+  selectSuggestion(value, evt) {
+    // Insert the selected suggestion
+  }
+}
+
+// Register in your plugin
+this.registerEditorSuggest(new MyEditorSuggest(this.app));
+```
+
+## EditorSuggest Class
+
+### Class Definition
+
+```typescript
+abstract class EditorSuggest<T> {
+  app: App;
+
+  constructor(app: App);
+
+  abstract onTrigger(
+    cursor: EditorPosition,
+    editor: EditorView,
+    file: TFile | null
+  ): EditorSuggestTriggerInfo | null;
+
+  abstract getSuggestions(context: EditorSuggestContext): T[] | Promise<T[]>;
+  abstract selectSuggestion(value: T, evt: MouseEvent | KeyboardEvent): void;
+
+  isOpen(): boolean;
+  open(cursor: EditorPosition, editor: EditorView): void;
+  close(): void;
+}
+```
+
+### Types
+
+```typescript
+interface EditorPosition {
+  line: number;
+  ch: number;
+}
+
+interface EditorSuggestTriggerInfo {
+  start: EditorPosition;  // Start of trigger text
+  end: EditorPosition;    // End of trigger text
+  query: string;          // Query string for filtering
+}
+
+interface EditorSuggestContext {
+  editor: EditorView;
+  file: TFile | null;
+  query: string;  // From EditorSuggestTriggerInfo
+}
+```
+
+## Abstract Methods
+
+### onTrigger()
+
+<ParamField path="onTrigger" type="(cursor: EditorPosition, editor: EditorView, file: TFile | null) => EditorSuggestTriggerInfo | null">
+  Detect if suggestions should be shown at the current cursor position.
+</ParamField>
+
+**Return**:
+- `EditorSuggestTriggerInfo` if suggestions should be shown
+- `null` if suggestions should not be shown
+
+```typescript
+onTrigger(cursor: EditorPosition, editor: any, file: TFile | null) {
+  const line = editor.state.doc.line(cursor.line + 1);
+  const text = line.text.substring(0, cursor.ch);
+
+  // Trigger on "@" character
+  const match = text.match(/@(\w*)$/);
+  if (!match) return null;
+
+  return {
+    start: { line: cursor.line, ch: cursor.ch - match[0].length },
+    end: cursor,
+    query: match[1], // Text after "@"
+  };
+}
+```
+
+### getSuggestions()
+
+<ParamField path="getSuggestions" type="(context: EditorSuggestContext) => T[] | Promise<T[]>">
+  Get suggestions to display. Can be synchronous or asynchronous.
+</ParamField>
+
+```typescript
+getSuggestions(context: EditorSuggestContext): string[] {
+  const query = context.query.toLowerCase();
+  const allSuggestions = ['apple', 'banana', 'cherry', 'date'];
+  
+  // Filter by query
+  return allSuggestions.filter(item => 
+    item.toLowerCase().includes(query)
+  );
+}
+
+// Async example
+async getSuggestions(context: EditorSuggestContext): Promise<TFile[]> {
+  const files = await this.app.workspace.getMarkdownFiles();
+  const query = context.query.toLowerCase();
+  
+  return files.filter(file => 
+    file.name.toLowerCase().includes(query)
+  );
+}
+```
+
+### selectSuggestion()
+
+<ParamField path="selectSuggestion" type="(value: T, evt: MouseEvent | KeyboardEvent) => void">
+  Handle selection of a suggestion. Insert the selected value into the editor.
+</ParamField>
+
+```typescript
+selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent) {
+  if (!this.context) return;
+  const { editor, start, end } = this.context;
+
+  // Replace trigger text with selected value
+  editor.dispatch({
+    changes: {
+      from: editor.state.doc.line(start.line + 1).from + start.ch,
+      to: editor.state.doc.line(end.line + 1).from + end.ch,
+      insert: value,
+    },
+  });
+}
+```
+
+## Slash Commands Plugin Example
+
+From the built-in Slash Commands plugin:
+
+```typescript
+import { EditorSuggest, type App, type EditorPosition, type EditorSuggestContext, type EditorSuggestTriggerInfo, type TFile } from '@inkdown/core';
+
+interface SlashCommand {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  action: (editor: any, cursor: EditorPosition) => void;
+}
+
+class SlashCommandSuggest extends EditorSuggest<SlashCommand> {
+  plugin: SlashCommandsPlugin;
+  private commands: SlashCommand[];
+
+  constructor(app: App, plugin: SlashCommandsPlugin) {
+    super(app);
+    this.plugin = plugin;
+    this.commands = this.getCommands();
+  }
+
+  getCommands(): SlashCommand[] {
+    return [
+      {
+        id: 'h1',
+        name: 'Heading 1',
+        icon: 'heading-1',
+        description: 'Big section heading',
+        action: (editor, cursor) => this.insertLinePrefix(editor, cursor, '# '),
+      },
+      {
+        id: 'h2',
+        name: 'Heading 2',
+        icon: 'heading-2',
+        description: 'Medium section heading',
+        action: (editor, cursor) => this.insertLinePrefix(editor, cursor, '## '),
+      },
+      {
+        id: 'code-block',
+        name: 'Code Block',
+        icon: 'code',
+        description: 'Capture a code snippet',
+        action: (editor, cursor) => {
+          const line = editor.state.doc.line(cursor.line + 1);
+          const replacement = '```\n\n```';
+          editor.dispatch({
+            changes: { from: line.from, to: line.to, insert: replacement },
+            selection: { anchor: line.from + 4 },
+          });
+        },
+      },
+      // More commands...
+    ];
+  }
+
+  insertLinePrefix(editor: any, cursor: EditorPosition, prefix: string) {
+    const line = editor.state.doc.line(cursor.line + 1);
+    editor.dispatch({
+      changes: { from: line.from, to: line.to, insert: prefix },
+      selection: { anchor: line.from + prefix.length },
+    });
+  }
+
+  onTrigger(
+    cursor: EditorPosition,
+    editor: any,
+    file: TFile | null
+  ): EditorSuggestTriggerInfo | null {
+    if (!this.plugin.settings.enableSlashCommands) return null;
+
+    const line = editor.state.doc.line(cursor.line + 1);
+    const text = line.text.substring(0, cursor.ch);
+
+    // Trigger on "/" at start of line or after space
+    const match = text.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
+    if (!match) return null;
+
+    return {
+      start: {
+        line: cursor.line,
+        ch: match.index! + (match[0].startsWith(' ') ? 1 : 0),
+      },
+      end: cursor,
+      query: match[1],
+    };
+  }
+
+  getSuggestions(context: EditorSuggestContext): SlashCommand[] {
+    const query = context.query.toLowerCase();
+    return this.commands.filter(
+      cmd => cmd.name.toLowerCase().includes(query) || 
+             cmd.id.toLowerCase().includes(query)
+    );
+  }
+
+  renderSuggestion(cmd: SlashCommand, el: HTMLElement): void {
+    el.addClass('slash-command-item');
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '10px';
+    el.style.padding = '6px 10px';
+
+    // Icon
+    const iconEl = el.createDiv({ cls: 'slash-command-icon' });
+    setIcon(iconEl, cmd.icon);
+
+    // Content
+    const contentEl = el.createDiv({ cls: 'slash-command-content' });
+    contentEl.createDiv({ cls: 'slash-command-name', text: cmd.name });
+    contentEl.createDiv({ cls: 'slash-command-desc', text: cmd.description });
+  }
+
+  selectSuggestion(cmd: SlashCommand, evt: MouseEvent | KeyboardEvent): void {
+    if (!this.context) return;
+    const { editor, start } = this.context;
+    cmd.action(editor, start);
+  }
+}
+
+// Register in plugin
+export default class SlashCommandsPlugin extends Plugin {
+  async onload() {
+    const slashSuggest = new SlashCommandSuggest(this.app, this);
+    this.registerEditorSuggest(slashSuggest);
+  }
+}
+```
+
+## Common Patterns
+
+### File Link Suggestions
+
+```typescript
+class FileLinkSuggest extends EditorSuggest<TFile> {
+  onTrigger(cursor, editor, file) {
+    const line = editor.state.doc.line(cursor.line + 1);
+    const text = line.text.substring(0, cursor.ch);
+
+    // Trigger on "[[" for wiki links
+    const match = text.match(/\[\[([^\]]*)$/);
+    if (!match) return null;
+
+    return {
+      start: { line: cursor.line, ch: cursor.ch - match[1].length },
+      end: cursor,
+      query: match[1],
+    };
+  }
+
+  async getSuggestions(context) {
+    const files = await this.app.workspace.getMarkdownFiles();
+    const query = context.query.toLowerCase();
+    
+    return files.filter(file => 
+      file.basename.toLowerCase().includes(query)
+    );
+  }
+
+  selectSuggestion(file, evt) {
+    if (!this.context) return;
+    const { editor, start, end } = this.context;
+
+    const lineStart = editor.state.doc.line(start.line + 1).from;
+    editor.dispatch({
+      changes: {
+        from: lineStart + start.ch,
+        to: lineStart + end.ch,
+        insert: file.basename + ']]',
+      },
+    });
+  }
+}
+```
+
+### Tag Suggestions
+
+```typescript
+class TagSuggest extends EditorSuggest<string> {
+  tags = ['important', 'todo', 'project', 'meeting'];
+
+  onTrigger(cursor, editor, file) {
+    const line = editor.state.doc.line(cursor.line + 1);
+    const text = line.text.substring(0, cursor.ch);
+
+    // Trigger on "#"
+    const match = text.match(/#([\w-]*)$/);
+    if (!match) return null;
+
+    return {
+      start: { line: cursor.line, ch: cursor.ch - match[0].length },
+      end: cursor,
+      query: match[1],
+    };
+  }
+
+  getSuggestions(context) {
+    const query = context.query.toLowerCase();
+    return this.tags.filter(tag => tag.toLowerCase().includes(query));
+  }
+
+  selectSuggestion(tag, evt) {
+    if (!this.context) return;
+    const { editor, start, end } = this.context;
+
+    const lineStart = editor.state.doc.line(start.line + 1).from;
+    editor.dispatch({
+      changes: {
+        from: lineStart + start.ch,
+        to: lineStart + end.ch,
+        insert: `#${tag} `,
+      },
+    });
+  }
+}
+```
+
+### Emoji Suggestions
+
+```typescript
+class EmojiSuggest extends EditorSuggest<{code: string; emoji: string}> {
+  emojis = [
+    { code: 'smile', emoji: '😄' },
+    { code: 'heart', emoji: '❤️' },
+    { code: 'star', emoji: '⭐' },
+  ];
+
+  onTrigger(cursor, editor, file) {
+    const line = editor.state.doc.line(cursor.line + 1);
+    const text = line.text.substring(0, cursor.ch);
+
+    // Trigger on ":" for emoji codes
+    const match = text.match(/:([a-z]+)$/);
+    if (!match) return null;
+
+    return {
+      start: { line: cursor.line, ch: cursor.ch - match[0].length },
+      end: cursor,
+      query: match[1],
+    };
+  }
+
+  getSuggestions(context) {
+    const query = context.query.toLowerCase();
+    return this.emojis.filter(e => e.code.startsWith(query));
+  }
+
+  selectSuggestion(item, evt) {
+    if (!this.context) return;
+    const { editor, start, end } = this.context;
+
+    const lineStart = editor.state.doc.line(start.line + 1).from;
+    editor.dispatch({
+      changes: {
+        from: lineStart + start.ch,
+        to: lineStart + end.ch,
+        insert: item.emoji,
+      },
+    });
+  }
+}
+```
+
+## Best Practices
+
+### Performance
+
+```typescript
+// ✅ Good - efficient trigger detection
+onTrigger(cursor, editor, file) {
+  const line = editor.state.doc.line(cursor.line + 1);
+  const text = line.text.substring(0, cursor.ch);
+  const match = text.match(/@(\w*)$/);
+  return match ? { /* ... */ } : null;
+}
+
+// ❌ Bad - expensive operations
+onTrigger(cursor, editor, file) {
+  const allText = editor.state.doc.toString(); // Entire document!
+  // ...
+}
+```
+
+### Handle Context Properly
+
+```typescript
+// ✅ Good - check context
+selectSuggestion(value, evt) {
+  if (!this.context) return;
+  const { editor, start, end } = this.context;
+  // Use context
+}
+
+// ❌ Bad - assume context exists
+selectSuggestion(value, evt) {
+  const { editor, start, end } = this.context; // May be undefined!
+}
+```
+
+### Filter Suggestions
+
+```typescript
+// ✅ Good - filter by query
+getSuggestions(context) {
+  const query = context.query.toLowerCase();
+  return this.allItems.filter(item => 
+    item.name.toLowerCase().includes(query)
+  );
+}
+
+// ❌ Bad - return all items
+getSuggestions(context) {
+  return this.allItems; // Too many results!
+}
+```
+
+### Provide Visual Feedback
+
+```typescript
+renderSuggestion(item, el) {
+  el.createDiv({ cls: 'suggestion-title', text: item.name });
+  el.createDiv({ cls: 'suggestion-description', text: item.description });
+}
+```
+
+## Related
+
+- [Editor](/plugins/editor) - Editor manipulation
+- [Commands](/plugins/commands) - Editor commands
+- [Plugin Class](/plugins/plugin-class) - registerEditorSuggest()

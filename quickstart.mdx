@@ -1,80 +1,301 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with Inkdown in minutes
 ---
 
-## Get started in three steps
+This guide will help you install Inkdown and create your first note in under 5 minutes.
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+## Prerequisites
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Inkdown runs on **macOS**, **Windows**, and **Linux**. Make sure you're running a supported operating system.
 </Note>
+
+## Step 1: Install Inkdown
+
+<Steps>
+  <Step title="Download Inkdown">
+    Visit the [GitHub Releases](https://github.com/inkdown/inkdown/releases) page and download the latest version for your platform:
+
+    | Platform | File Type |
+    |----------|----------|
+    | macOS (Apple Silicon) | `.dmg` |
+    | macOS (Intel) | `.dmg` |
+    | Windows | `.msi` |
+    | Linux | `.AppImage` |
+  </Step>
+
+  <Step title="Install the Application">
+    **macOS:**
+    1. Open the downloaded `.dmg` file
+    2. Drag Inkdown to your Applications folder
+    3. Right-click the app and select "Open" (first time only)
+
+    **Windows:**
+    1. Run the downloaded `.msi` installer
+    2. Follow the installation wizard
+    3. Launch Inkdown from the Start Menu
+
+    **Linux:**
+    1. Make the `.AppImage` executable:
+    ```bash
+    chmod +x Inkdown-*.AppImage
+    ```
+    2. Run the AppImage:
+    ```bash
+    ./Inkdown-*.AppImage
+    ```
+  </Step>
+
+  <Step title="Launch Inkdown">
+    Open Inkdown from your Applications folder, Start Menu, or command line.
+  </Step>
+</Steps>
+
+## Step 2: Create a Workspace
+
+<Steps>
+  <Step title="Open or Create Workspace">
+    On first launch, Inkdown will prompt you to open or create a workspace.
+
+    A **workspace** is simply a folder on your computer where Inkdown will store your notes.
+
+    <Tip>
+      Choose a location you'll remember, like `~/Documents/Notes` or `~/Inkdown`.
+    </Tip>
+  </Step>
+
+  <Step title="Select Workspace Folder">
+    Click **"Create Workspace"** or **"Open Existing Workspace"** and select a folder.
+
+    ```bash
+    # Example workspace structure
+    ~/Documents/Notes/
+    ├── daily/
+    ├── projects/
+    └── archive/
+    ```
+  </Step>
+</Steps>
+
+## Step 3: Create Your First Note
+
+<Steps>
+  <Step title="Create a New Note">
+    Use one of these methods:
+
+    - Click the **"New Note"** button in the toolbar
+    - Use keyboard shortcut: `Cmd/Ctrl + N`
+    - Use Command Palette: `Cmd/Ctrl + P` → "Create new note"
+  </Step>
+
+  <Step title="Name Your Note">
+    Give your note a name, for example:
+    ```
+    My First Note.md
+    ```
+
+    <Note>
+      All notes are saved as `.md` (markdown) files. They're just plain text files that work with Git and any other text editor.
+    </Note>
+  </Step>
+
+  <Step title="Start Writing">
+    The editor will open with your new note. Start typing!
+
+    ```markdown
+    # My First Note
+
+    This is my first note in Inkdown.
+
+    ## Features I Love
+
+    - Fast and responsive
+    - Local-first
+    - Markdown support
+
+    ## Next Steps
+
+    - [ ] Explore more features
+    - [ ] Install plugins
+    - [ ] Customize themes
+    ```
+  </Step>
+</Steps>
+
+## Step 4: Explore Basic Features
+
+### Live Preview
+
+Toggle live preview to see your markdown rendered in real-time:
+
+- Click the **preview icon** in the toolbar
+- Use keyboard shortcut: `Cmd/Ctrl + E`
+
+### Command Palette
+
+Access all commands quickly:
+
+1. Press `Cmd/Ctrl + P`
+2. Type to search for commands
+3. Press Enter to execute
+
+### File Navigation
+
+Quickly find and open files:
+
+1. Press `Cmd/Ctrl + O`
+2. Type the file name
+3. Press Enter to open
+
+### Formatting
+
+Use keyboard shortcuts for quick formatting:
+
+| Action | macOS | Windows/Linux |
+|--------|-------|---------------|
+| Bold | `Cmd + B` | `Ctrl + B` |
+| Italic | `Cmd + I` | `Ctrl + I` |
+| Heading | `Cmd + H` | `Ctrl + H` |
+| Link | `Cmd + K` | `Ctrl + K` |
+| Code Block | `Cmd + Shift + K` | `Ctrl + Shift + K` |
+
+## Step 5: Customize Your Setup
+
+<Tabs>
+  <Tab title="Theme">
+    Change the theme to match your preference:
+
+    1. Open Settings: `Cmd/Ctrl + ,`
+    2. Go to **Appearance**
+    3. Choose **Dark**, **Light**, or install a custom theme
+
+    <Tip>
+      You can also install community themes from the Settings → Themes section.
+    </Tip>
+  </Tab>
+
+  <Tab title="Editor">
+    Customize editor behavior:
+
+    1. Open Settings: `Cmd/Ctrl + ,`
+    2. Go to **Editor**
+    3. Configure:
+       - Font size
+       - Line height
+       - Tab size
+       - Vim mode
+       - Auto-save
+  </Tab>
+
+  <Tab title="Plugins">
+    Enable or install plugins:
+
+    1. Open Settings: `Cmd/Ctrl + ,`
+    2. Go to **Plugins**
+    3. Enable built-in plugins:
+       - Word Count
+       - Quick Finder
+       - Slash Commands
+       - Live Preview
+    4. Browse community plugins
+  </Tab>
+</Tabs>
+
+## Quick Reference
+
+### Essential Keyboard Shortcuts
+
+<AccordionGroup>
+  <Accordion title="File Management">
+    - `Cmd/Ctrl + N` — New note
+    - `Cmd/Ctrl + O` — Open file
+    - `Cmd/Ctrl + S` — Save file
+    - `Cmd/Ctrl + W` — Close tab
+  </Accordion>
+
+  <Accordion title="Editor">
+    - `Cmd/Ctrl + E` — Toggle preview
+    - `Cmd/Ctrl + B` — Bold
+    - `Cmd/Ctrl + I` — Italic
+    - `Cmd/Ctrl + K` — Insert link
+  </Accordion>
+
+  <Accordion title="Navigation">
+    - `Cmd/Ctrl + P` — Command palette
+    - `Cmd/Ctrl + \` — Toggle sidebar
+    - `Cmd/Ctrl + Tab` — Switch tabs
+  </Accordion>
+</AccordionGroup>
+
+## Example Note
+
+Here's a complete example note to help you get started:
+
+```markdown
+# Project Planning
+
+## Overview
+
+This is a project planning document.
+
+## Tasks
+
+- [ ] Set up repository
+- [ ] Design architecture
+- [x] Install dependencies
+
+## Code Snippet
+
+```typescript
+import { App } from '@inkdown/core';
+
+const app = new App();
+await app.init();
+```
+
+## Links
+
+- [Documentation](https://example.com)
+- [[Related Note]]
+
+## Image
+
+![Screenshot](#)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Learn about all installation options including building from source
+  </Card>
+  
+  <Card title="Keyboard Shortcuts" icon="keyboard" href="/shortcuts">
+    Master all keyboard shortcuts for maximum productivity
+  </Card>
+  
+  <Card title="Plugin Development" icon="puzzle-piece" href="/plugins/system">
+    Build your own plugins using the Inkdown Plugin API
+  </Card>
+  
+  <Card title="Themes" icon="palette" href="/styling/creating-themes">
+    Create custom themes to personalize your editor
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+<CardGroup cols={3}>
+  <Card title="GitHub Discussions" icon="comments" href="https://github.com/inkdown/inkdown/discussions">
+    Ask questions and get help from the community
+  </Card>
+  
+  <Card title="Report Issues" icon="bug" href="https://github.com/inkdown/inkdown/issues">
+    Found a bug? Let us know!
+  </Card>
+  
+  <Card title="Contributing" icon="code-branch" href="https://github.com/inkdown/inkdown/blob/main/CONTRIBUTING.md">
+    Contribute to Inkdown development
+  </Card>
+</CardGroup>

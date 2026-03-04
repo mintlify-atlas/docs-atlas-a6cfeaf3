@@ -1,0 +1,597 @@
+---
+title: Commands
+description: Register commands and keyboard shortcuts
+---
+
+## Overview
+
+Commands provide actions that users can execute via the command palette or keyboard shortcuts. Register commands using `this.addCommand()`.
+
+```typescript
+this.addCommand({
+  id: 'my-command',
+  name: 'My Command',
+  hotkey: ['Mod', 'k'],
+  callback: () => {
+    this.showNotice('Command executed!');
+  },
+});
+```
+
+## Command Interface
+
+```typescript
+interface Command {
+  id: string;
+  name: string;
+  hotkey?: string[];
+  callback?: () => void | Promise<void>;
+  checkCallback?: (checking: boolean) => boolean | void;
+  editorCallback?: (editor: IEditor) => void;
+}
+```
+
+## Required Fields
+
+### id
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the command. Must be unique within your plugin.
+</ParamField>
+
+```typescript
+id: 'insert-timestamp'  // ✅ Good
+id: 'timestamp'          // ✅ Good
+id: 'Insert Timestamp'   // ❌ Bad - use kebab-case
+```
+
+### name
+
+<ParamField path="name" type="string" required>
+  Display name shown in the command palette.
+</ParamField>
+
+```typescript
+name: 'Insert Timestamp'     // ✅ Good
+name: 'Insert current timestamp'  // ✅ Good
+name: 'insert_timestamp'     // ❌ Bad - use title case
+```
+
+## Optional Fields
+
+### hotkey
+
+<ParamField path="hotkey" type="string[]">
+  Keyboard shortcut for the command.
+</ParamField>
+
+```typescript
+// Modifier keys
+hotkey: ['Mod', 'k']      // Cmd+K (Mac) or Ctrl+K (Win/Linux)
+hotkey: ['Mod', 'Shift', 's']  // Cmd+Shift+S / Ctrl+Shift+S
+hotkey: ['Alt', 'Enter']  // Alt+Enter
+
+// Letter keys
+hotkey: ['Mod', 'b']  // Bold
+hotkey: ['Mod', 'i']  // Italic
+
+// Special keys
+hotkey: ['Mod', 'Enter']     // Enter
+hotkey: ['Escape']           // Escape
+hotkey: ['Mod', 'ArrowUp']   // Arrow key
+```
+
+**Available modifiers**:
+- `Mod`: Cmd on Mac, Ctrl on Windows/Linux
+- `Ctrl`: Control key
+- `Alt`: Alt/Option key
+- `Shift`: Shift key
+- `Meta`: Windows key / Command key
+
+### callback
+
+<ParamField path="callback" type="() => void | Promise<void>">
+  Function to execute when the command is triggered.
+</ParamField>
+
+```typescript
+callback: () => {
+  console.log('Command executed');
+  this.showNotice('Done!');
+}
+
+// Async callback
+callback: async () => {
+  const data = await this.fetchData();
+  this.processData(data);
+}
+```
+
+### checkCallback
+
+<ParamField path="checkCallback" type="(checking: boolean) => boolean | void">
+  Conditional callback that can enable/disable the command based on context.
+</ParamField>
+
+```typescript
+checkCallback: (checking) => {
+  // When checking=true, return whether command should be available
+  if (checking) {
+    const editor = this.app.workspace.activeEditor();
+    return editor !== null;
+  }
+  
+  // When checking=false, execute the command
+  this.executeCommand();
+}
+```
+
+**Use cases**:
+- Show command only when editor has focus
+- Enable command only when file is selected
+- Disable command based on app state
+
+### editorCallback
+
+<ParamField path="editorCallback" type="(editor: IEditor) => void">
+  Callback that receives the active editor. Only called when an editor is active.
+</ParamField>
+
+```typescript
+editorCallback: (editor) => {
+  const selection = editor.getSelection();
+  editor.replaceSelection(`**${selection}**`);
+}
+```
+
+<Note>
+Use `editorCallback` instead of manually checking for an active editor in `callback`.
+</Note>
+
+## Basic Examples
+
+### Simple Command
+
+```typescript
+this.addCommand({
+  id: 'say-hello',
+  name: 'Say Hello',
+  callback: () => {
+    this.showNotice('Hello from my plugin!');
+  },
+});
+```
+
+### Command with Hotkey
+
+```typescript
+this.addCommand({
+  id: 'insert-date',
+  name: 'Insert Current Date',
+  hotkey: ['Mod', 'd'],
+  editorCallback: (editor) => {
+    const date = new Date().toLocaleDateString();
+    editor.replaceSelection(date);
+  },
+});
+```
+
+### Async Command
+
+```typescript
+this.addCommand({
+  id: 'export-file',
+  name: 'Export Current File',
+  callback: async () => {
+    const file = this.app.workspaceUI.getActiveFile();
+    if (!file) {
+      this.showNotice('No file active');
+      return;
+    }
+    
+    const content = await this.app.workspace.read(file);
+    await this.exportToPDF(content);
+    this.showNotice('Exported successfully!');
+  },
+});
+```
+
+### Conditional Command
+
+```typescript
+this.addCommand({
+  id: 'format-selection',
+  name: 'Format Selection',
+  checkCallback: (checking) => {
+    const editor = this.app.workspace.activeEditor();
+    const hasSelection = editor && editor.getSelection().length > 0;
+    
+    if (checking) {
+      return hasSelection;
+    }
+    
+    if (hasSelection && editor) {
+      const formatted = this.formatText(editor.getSelection());
+      editor.replaceSelection(formatted);
+    }
+  },
+});
+```
+
+## Editor Commands
+
+Commands that manipulate editor content should use `editorCallback`:
+
+### Text Insertion
+
+```typescript
+this.addCommand({
+  id: 'insert-timestamp',
+  name: 'Insert Timestamp',
+  hotkey: ['Mod', 'Shift', 't'],
+  editorCallback: (editor) => {
+    const timestamp = new Date().toISOString();
+    editor.replaceSelection(timestamp);
+  },
+});
+```
+
+### Text Formatting
+
+```typescript
+this.addCommand({
+  id: 'bold',
+  name: 'Bold',
+  hotkey: ['Mod', 'b'],
+  editorCallback: (editor) => {
+    const selection = editor.getSelection();
+    if (selection) {
+      editor.replaceSelection(`**${selection}**`);
+    } else {
+      editor.replaceSelection('****');
+      const cursor = editor.getCursor();
+      editor.setCursor({ line: cursor.line, ch: cursor.ch - 2 });
+    }
+  },
+});
+
+this.addCommand({
+  id: 'italic',
+  name: 'Italic',
+  hotkey: ['Mod', 'i'],
+  editorCallback: (editor) => {
+    const selection = editor.getSelection();
+    if (selection) {
+      editor.replaceSelection(`*${selection}*`);
+    } else {
+      editor.replaceSelection('**');
+      const cursor = editor.getCursor();
+      editor.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
+    }
+  },
+});
+```
+
+### Text Transformation
+
+```typescript
+this.addCommand({
+  id: 'uppercase',
+  name: 'Convert to Uppercase',
+  editorCallback: (editor) => {
+    const selection = editor.getSelection();
+    if (selection) {
+      editor.replaceSelection(selection.toUpperCase());
+    }
+  },
+});
+
+this.addCommand({
+  id: 'lowercase',
+  name: 'Convert to Lowercase',
+  editorCallback: (editor) => {
+    const selection = editor.getSelection();
+    if (selection) {
+      editor.replaceSelection(selection.toLowerCase());
+    }
+  },
+});
+```
+
+### Line Manipulation
+
+```typescript
+this.addCommand({
+  id: 'toggle-todo',
+  name: 'Toggle Todo Checkbox',
+  editorCallback: (editor) => {
+    const cursor = editor.getCursor();
+    const line = editor.getLine(cursor.line);
+    
+    let newLine: string;
+    if (line.includes('- [ ]')) {
+      newLine = line.replace('- [ ]', '- [x]');
+    } else if (line.includes('- [x]')) {
+      newLine = line.replace('- [x]', '- [ ]');
+    } else {
+      newLine = '- [ ] ' + line.trim();
+    }
+    
+    editor.replaceRange(
+      newLine,
+      { line: cursor.line, ch: 0 },
+      { line: cursor.line, ch: line.length }
+    );
+  },
+});
+```
+
+## Advanced Patterns
+
+### Multiple Actions
+
+```typescript
+this.addCommand({
+  id: 'create-note-from-template',
+  name: 'Create Note from Template',
+  callback: async () => {
+    // Step 1: Prompt for name
+    const name = await this.promptForName();
+    if (!name) return;
+    
+    // Step 2: Load template
+    const template = await this.loadTemplate();
+    
+    // Step 3: Create file
+    const file = await this.app.workspace.create(
+      `notes/${name}.md`,
+      template.replace('{{title}}', name)
+    );
+    
+    // Step 4: Open file
+    await this.app.workspaceUI.openFile(file);
+    
+    this.showNotice('Note created!');
+  },
+});
+```
+
+### State-Dependent Commands
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private isProcessing = false;
+  
+  async onload() {
+    this.addCommand({
+      id: 'process-files',
+      name: 'Process All Files',
+      checkCallback: (checking) => {
+        if (checking) {
+          return !this.isProcessing;
+        }
+        
+        this.processFiles();
+      },
+    });
+  }
+  
+  async processFiles() {
+    this.isProcessing = true;
+    
+    try {
+      const files = await this.app.workspace.getMarkdownFiles();
+      for (const file of files) {
+        await this.processFile(file);
+      }
+      this.showNotice('Processing complete!');
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+}
+```
+
+### Commands with User Input
+
+```typescript
+this.addCommand({
+  id: 'search-and-replace',
+  name: 'Search and Replace',
+  editorCallback: async (editor) => {
+    // In real implementation, use a proper input modal
+    const searchTerm = prompt('Search for:');
+    if (!searchTerm) return;
+    
+    const replaceTerm = prompt('Replace with:');
+    if (replaceTerm === null) return;
+    
+    const content = editor.getValue();
+    const updated = content.replaceAll(searchTerm, replaceTerm);
+    editor.setValue(updated);
+    
+    const count = (content.match(new RegExp(searchTerm, 'g')) || []).length;
+    this.showNotice(`Replaced ${count} occurrence(s)`);
+  },
+});
+```
+
+### Command Groups
+
+```typescript
+// Create related commands
+async onload() {
+  const formats = [
+    { id: 'h1', name: 'Heading 1', prefix: '# ' },
+    { id: 'h2', name: 'Heading 2', prefix: '## ' },
+    { id: 'h3', name: 'Heading 3', prefix: '### ' },
+  ];
+  
+  for (const format of formats) {
+    this.addCommand({
+      id: `format-${format.id}`,
+      name: format.name,
+      editorCallback: (editor) => {
+        const cursor = editor.getCursor();
+        const line = editor.getLine(cursor.line);
+        const newLine = format.prefix + line.replace(/^#+\s*/, '');
+        
+        editor.replaceRange(
+          newLine,
+          { line: cursor.line, ch: 0 },
+          { line: cursor.line, ch: line.length }
+        );
+      },
+    });
+  }
+}
+```
+
+## Quick Finder Plugin Example
+
+From the built-in Quick Finder plugin:
+
+```typescript
+export default class QuickFinderPlugin extends Plugin {
+  private modal: QuickFinderModal | null = null;
+
+  async onload() {
+    this.addCommand({
+      id: 'quick-finder:open',
+      name: 'Open Quick Finder',
+      hotkey: ['Mod', 'o'],
+      callback: () => {
+        this.openQuickFinder();
+      },
+    });
+  }
+
+  private openQuickFinder() {
+    if (this.modal) {
+      this.modal.close();
+    }
+    this.modal = new QuickFinderModal(this.app);
+    this.modal.open();
+  }
+}
+```
+
+## Best Practices
+
+### Use Descriptive IDs
+
+```typescript
+// ✅ Good
+id: 'export-to-pdf'
+id: 'toggle-todo-checkbox'
+id: 'insert-current-date'
+
+// ❌ Bad
+id: 'export'
+id: 'toggle'
+id: 'insert'
+```
+
+### Use Clear Names
+
+```typescript
+// ✅ Good
+name: 'Export to PDF'
+name: 'Toggle Todo Checkbox'
+name: 'Insert Current Date'
+
+// ❌ Bad
+name: 'Export'
+name: 'Toggle'
+name: 'Date'
+```
+
+### Choose Appropriate Callbacks
+
+```typescript
+// ✅ Good - editor operation
+this.addCommand({
+  id: 'bold',
+  name: 'Bold',
+  editorCallback: (editor) => {
+    // Editor guaranteed to exist
+  },
+});
+
+// ✅ Good - non-editor operation
+this.addCommand({
+  id: 'open-settings',
+  name: 'Open Settings',
+  callback: () => {
+    // No editor needed
+  },
+});
+
+// ❌ Bad - manual editor check
+this.addCommand({
+  id: 'bold',
+  name: 'Bold',
+  callback: () => {
+    const editor = this.app.workspace.activeEditor();
+    if (editor) {
+      // Should use editorCallback
+    }
+  },
+});
+```
+
+### Handle Errors
+
+```typescript
+this.addCommand({
+  id: 'export-file',
+  name: 'Export File',
+  callback: async () => {
+    try {
+      await this.exportFile();
+      this.showNotice('Export successful!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      this.showNotice('Export failed');
+    }
+  },
+});
+```
+
+### Avoid Hotkey Conflicts
+
+```typescript
+// ✅ Good - unlikely to conflict
+hotkey: ['Mod', 'Shift', 'k']
+hotkey: ['Alt', 'x']
+
+// ❌ Bad - common conflicts
+hotkey: ['Mod', 's']  // Save
+hotkey: ['Mod', 'c']  // Copy
+hotkey: ['Mod', 'v']  // Paste
+```
+
+### Provide Feedback
+
+```typescript
+this.addCommand({
+  id: 'process-file',
+  name: 'Process File',
+  callback: async () => {
+    this.showNotice('Processing...');
+    
+    try {
+      await this.processFile();
+      this.showNotice('Processing complete!');
+    } catch (error) {
+      this.showNotice('Processing failed');
+    }
+  },
+});
+```
+
+## Related
+
+- [Plugin Class](/plugins/plugin-class) - Register commands
+- [Editor](/plugins/editor) - Editor manipulation
+- [Modals](/plugins/modals) - User input dialogs

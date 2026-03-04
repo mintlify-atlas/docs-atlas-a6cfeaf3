@@ -1,0 +1,172 @@
+---
+title: Editor Basics
+description: Learn about Inkdown's editor features, markdown support, and editing modes
+---
+
+# Editor Basics
+
+Inkdown provides a powerful, modern markdown editor built on CodeMirror 6, designed for efficient note-taking and document writing.
+
+## Core Features
+
+### Markdown Support
+
+Inkdown offers comprehensive markdown support through the editor:
+
+- **Standard Markdown**: Full CommonMark and GitHub Flavored Markdown (GFM) support
+- **Extended Syntax**: Tables, task lists, strikethrough, and autolinks
+- **Math Rendering**: KaTeX support for mathematical expressions
+- **Code Highlighting**: Syntax highlighting for code blocks via highlight.js
+- **Custom Extensions**: Callouts and text highlighting
+
+### Auto-Pair Brackets
+
+The editor automatically closes brackets, quotes, and parentheses as you type:
+
+```typescript
+autoPairBrackets: true  // Default: enabled
+```
+
+When you type an opening bracket `(`, quote `"`, or parenthesis, the editor automatically inserts the closing character and places your cursor between them.
+
+### Tab Indentation
+
+Use the Tab key for indentation in your documents:
+
+```typescript
+tabIndentation: true  // Default: enabled
+```
+
+Press `Tab` to indent and `Shift+Tab` to outdent the current line or selection.
+
+### HTML to Markdown Conversion
+
+When you paste HTML content, Inkdown automatically converts it to markdown:
+
+```typescript
+convertPastedHtmlToMarkdown: true  // Default: enabled
+```
+
+This feature ensures your notes remain in clean markdown format even when copying from web pages or other rich-text sources.
+
+## Live Preview
+
+Inkdown includes a powerful live preview system that renders your markdown in real-time.
+
+### Preview Modes
+
+The editor supports two preview modes:
+
+1. **Side-by-Side**: Edit markdown on the left while seeing the rendered output on the right
+2. **Preview Only**: View only the rendered markdown output
+
+Switch between modes using `Cmd/Ctrl+E` (see [Keyboard Shortcuts](/guide/keyboard-shortcuts)).
+
+### Preview Features
+
+- **Synchronized Scrolling**: The preview scrolls alongside your editing position
+- **Math Rendering**: LaTeX equations are rendered using KaTeX
+- **Syntax Highlighting**: Code blocks are highlighted using highlight.js with GitHub Dark theme
+- **Image Support**: Images are rendered with proper path resolution
+- **Tables**: Full support for GFM tables with styling
+- **Task Lists**: Interactive checkboxes for task items
+
+### Supported Markdown Extensions
+
+The preview processor includes several remark and rehype plugins:
+
+```typescript
+// Remark plugins (markdown processing)
+- remarkGfm          // GitHub Flavored Markdown
+- remarkMath         // Math notation
+- remarkCallout      // Callout blocks
+- remarkHighlight    // Text highlighting
+
+// Rehype plugins (HTML processing)
+- rehypeRaw          // Allow HTML in markdown
+- rehypeKatex        // Render math with KaTeX
+- rehypeHighlight    // Code syntax highlighting
+```
+
+## Vim Mode
+
+Inkdown includes full Vim keybinding support for users who prefer modal editing:
+
+```typescript
+vimMode: false  // Default: disabled
+```
+
+Enable Vim mode in **Settings > Editor** to use Vim motions and commands while editing your notes.
+
+### Vim Mode Features
+
+- **Normal Mode**: Navigate and manipulate text using Vim motions (`h`, `j`, `k`, `l`, `w`, `b`, etc.)
+- **Insert Mode**: Standard text insertion
+- **Visual Mode**: Select and manipulate text blocks
+- **Command Mode**: Execute Vim commands
+- **Search**: Use `/` for forward search and `?` for backward search
+
+All standard Vim keybindings work as expected, allowing you to leverage your existing muscle memory.
+
+## Additional Editor Features
+
+### Line Numbers
+
+Display line numbers in the editor gutter:
+
+```typescript
+showLineNumbers: false  // Default: disabled
+```
+
+Enable in **Settings > Editor** to show line numbers for easier navigation in longer documents.
+
+### Heading Folding
+
+Collapse and expand sections of your document by heading:
+
+```typescript
+foldHeading: true  // Default: enabled
+```
+
+Click the fold indicator in the gutter next to headings to collapse entire sections, making it easier to navigate long documents.
+
+### Image Paste Support
+
+Paste images directly from your clipboard into the editor. The image will be saved to your workspace and a markdown image link will be inserted automatically:
+
+```markdown
+![Image description](path/to/image.png)
+```
+
+### URL Handling
+
+The editor preprocesses URLs with spaces, automatically percent-encoding them for proper markdown rendering:
+
+```markdown
+<!-- You type: -->
+![My Image](path/to/my image.png)
+
+<!-- Rendered as: -->
+![My Image](path/to/my%20image.png)
+```
+
+## Editor Configuration
+
+Access editor settings through **Settings > Editor** or use `Cmd/Ctrl+,` to open settings.
+
+All editor preferences are saved per workspace and synchronized across sessions.
+
+## Platform Integration
+
+The editor seamlessly integrates with Inkdown's platform-specific features:
+
+- **CSS Variables**: Theme changes update instantly without page reload
+- **Plugin Extensions**: Plugins can add custom CodeMirror extensions
+- **Command Integration**: Editor commands integrate with the global command palette
+- **Keybinding Manager**: Custom keyboard shortcuts are respected throughout the editor
+
+## Next Steps
+
+- Explore [Keyboard Shortcuts](/guide/keyboard-shortcuts) to boost your productivity
+- Customize your editing experience with [Themes](/guide/themes)
+- Learn about [Sync](/guide/sync) to keep your notes synchronized across devices

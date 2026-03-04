@@ -1,0 +1,488 @@
+---
+title: Workspace
+description: Understanding Inkdown's workspace concept, file management, tabs, and bookmarks
+---
+
+The **Workspace** in Inkdown represents your collection of markdown files and folders. It provides a unified API for file operations, manages open tabs, and maintains bookmarks for quick access to important files.
+
+## Workspace Concept
+
+Inkdown's workspace is designed to be platform-agnostic, working seamlessly across Desktop (with real file systems), Web (with virtual file systems), and Mobile platforms.
+
+<Info>
+A workspace is a single directory containing your markdown files. Think of it as your "vault" of notes.
+</Info>
+
+## File Management
+
+The `Workspace` manager provides comprehensive file operations through a clean API:
+
+### Accessing Files
+
+```typescript
+import type { TFile } from '@inkdown/core';
+
+// Get all markdown files in the workspace
+const files: TFile[] = await app.workspace.getMarkdownFiles();
+
+// Get all files (including non-markdown)
+const allFiles = await app.workspace.getAllFiles();
+
+// Get a specific file by path
+const file = app.workspace.getAbstractFileByPath('notes/example.md');
+
+// Get workspace root path
+const root = app.workspace.getRoot();
+```
+
+### File Structure
+
+Files are represented with the `TFile` interface:
+
+```typescript
+interface TFile {
+    path: string;          // Full path: "notes/example.md"
+    name: string;          // File name with extension: "example.md"
+    basename: string;      // Name without extension: "example"
+    extension: string;     // File extension: "md"
+    stat: {
+        size: number;      // File size in bytes
+        mtime: number;     // Last modified timestamp
+        ctime: number;     // Created timestamp
+    };
+}
+```
+
+### File Operations
+
+<AccordionGroup>
+  <Accordion title="Create a File">
+    ```typescript
+    // Create a new markdown file
+    const newFile = await app.workspace.create(
+        'notes/new-note.md',
+        '# New Note\n\nContent here...'
+    );
+    
+    console.log('Created:', newFile.path);
+    ```
+  </Accordion>
+  
+  <Accordion title="Read a File">
+    ```typescript
+    // Read file content
+    const content = await app.workspace.read('notes/example.md');
+    
+    console.log('File content:', content);
+    ```
+  </Accordion>
+  
+  <Accordion title="Modify a File">
+    ```typescript
+    // Update file content
+    await app.workspace.modify(
+        'notes/example.md',
+        '# Updated Content\n\nNew content...'
+    );
+    ```
+  </Accordion>
+  
+  <Accordion title="Delete a File">
+    ```typescript
+    // Delete a file
+    await app.workspace.delete('notes/old-note.md');
+    ```
+  </Accordion>
+  
+  <Accordion title="Rename/Move a File">
+    ```typescript
+    // Rename or move a file
+    await app.workspace.rename(
+        'notes/old-name.md',
+        'notes/new-name.md'
+    );
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### File Events
+
+Listen to file system changes:
+
+```typescript
+// File created
+app.workspace.on('create', (file: TFile) => {
+    console.log('File created:', file.path);
+});
+
+// File modified
+app.workspace.on('modify', (file: TFile) => {
+    console.log('File modified:', file.path);
+});
+
+// File deleted
+app.workspace.on('delete', (file: TFile) => {
+    console.log('File deleted:', file.path);
+});
+
+// File renamed
+app.workspace.on('rename', (file: TFile, oldPath: string) => {
+    console.log(`File renamed: ${oldPath} -> ${file.path}`);
+});
+```
+
+<Tip>
+File events are emitted by the `FileSystemManager` and propagated through the workspace, allowing plugins to react to file changes.
+</Tip>
+
+## Recent Files
+
+The workspace maintains a list of recently opened files for quick access:
+
+```typescript
+// Get recent files (up to 50, most recent first)
+const recentFiles = app.workspace.getRecentFiles();
+
+// Recent files are automatically updated when opening files
+app.workspace.on('recent-files:changed', (files: string[]) => {
+    console.log('Recent files updated:', files);
+});
+```
+
+Recent files are:
+- Persisted to the app configuration
+- Limited to 50 entries
+- Ordered by most recently accessed
+- Automatically maintained by the workspace
+
+## Tab Management
+
+Tabs represent open files in the editor. The `TabManager` handles tab lifecycle, persistence, and restoration.
+
+### Working with Tabs
+
+```typescript
+// Create a new tab
+const tab = app.tabManager.createTab({
+    filePath: 'notes/example.md',
+    title: 'Example Note',
+    isPinned: false
+});
+
+// Get all tabs
+const tabs = app.tabManager.getTabs();
+
+// Get active tab
+const activeTab = app.tabManager.getActiveTab();
+
+// Switch to a tab
+app.tabManager.setActiveTab(tab.id);
+
+// Close a tab
+app.tabManager.closeTab(tab.id);
+
+// Pin/unpin a tab
+app.tabManager.pinTab(tab.id, true);
+```
+
+### Tab Structure
+
+```typescript
+interface Tab {
+    id: string;            // Unique tab identifier
+    filePath: string;      // Path to the file (empty for untitled)
+    title: string;         // Display title
+    isPinned: boolean;     // Whether the tab is pinned
+    isDirty: boolean;      // Whether the file has unsaved changes
+}
+```
+
+### Tab Persistence
+
+Tabs are automatically saved and restored:
+
+```typescript
+// Tabs are saved to app.json on changes
+{
+    "tabs": [
+        {
+            "id": "tab-1",
+            "filePath": "notes/example.md",
+            "isPinned": false
+        }
+    ],
+    "activeTabId": "tab-1"
+}
+```
+
+<Note>
+When the application starts, `TabManager.init()` restores tabs from the saved configuration, allowing users to pick up where they left off.
+</Note>
+
+### Tab Events
+
+```typescript
+// Listen for active tab changes
+app.tabManager.onTabChange((tabId: string | null) => {
+    console.log('Active tab changed:', tabId);
+    
+    if (tabId) {
+        const tab = app.tabManager.getTab(tabId);
+        console.log('Now viewing:', tab.filePath);
+    }
+});
+```
+
+### Empty Tabs
+
+```typescript
+// Create an untitled/empty tab
+const emptyTab = app.tabManager.createTab({
+    filePath: '',
+    title: 'Untitled',
+    isPinned: false
+});
+
+// Check if a tab is empty
+if (tab.filePath === '') {
+    console.log('This is an empty tab');
+}
+```
+
+<Info>
+Empty tabs are not persisted to the configuration. They're automatically recreated if no tabs exist on startup.
+</Info>
+
+## Bookmarks
+
+Bookmarks provide quick access to frequently used files. They're organized into groups for better organization.
+
+### Managing Bookmarks
+
+```typescript
+// Create a bookmark group
+const groupId = app.bookmarkManager.createGroup({
+    name: 'Work Notes',
+    icon: 'briefcase',
+    color: '#4CAF50'
+});
+
+// Add a bookmark to a group
+app.bookmarkManager.addBookmark(groupId, {
+    filePath: 'work/project-plan.md',
+    title: 'Project Plan',
+    type: 'file'
+});
+
+// Get all bookmark groups
+const groups = app.bookmarkManager.getGroups();
+
+// Get bookmarks in a group
+const bookmarks = app.bookmarkManager.getBookmarks(groupId);
+
+// Remove a bookmark
+app.bookmarkManager.removeBookmark(groupId, bookmarkId);
+
+// Delete a group (and all its bookmarks)
+app.bookmarkManager.deleteGroup(groupId);
+```
+
+### Bookmark Structure
+
+```typescript
+interface Bookmark {
+    id: string;
+    filePath: string;
+    title: string;
+    type: 'file' | 'search' | 'graph';
+    icon?: string;
+}
+
+interface BookmarkGroup {
+    id: string;
+    name: string;
+    icon?: string;
+    color?: string;
+    bookmarks: Bookmark[];
+}
+```
+
+### Bookmark Events
+
+```typescript
+// Listen for bookmark changes
+app.bookmarkManager.on('bookmarks-changed', () => {
+    console.log('Bookmarks updated');
+    // Refresh bookmark UI
+});
+
+app.bookmarkManager.on('bookmarks-reloaded', () => {
+    console.log('Bookmarks reloaded from disk');
+});
+```
+
+## Workspace UI
+
+The `WorkspaceUI` manager handles UI-related workspace state:
+
+```typescript
+// Get active file path
+const activeFile = app.workspaceUI.getActiveFile();
+
+// Register custom view types
+app.workspaceUI.registerView('calendar', (container) => {
+    return new CalendarView(container);
+});
+
+// Get registered views
+const views = app.workspaceUI.getViews();
+```
+
+## Platform-Specific Behavior
+
+The workspace abstracts platform differences:
+
+<CardGroup cols={2}>
+  <Card title="Desktop (Tauri)" icon="desktop">
+    - Real file system access
+    - Absolute file paths
+    - Native file watchers
+    - Direct disk I/O
+  </Card>
+  
+  <Card title="Web" icon="globe">
+    - IndexedDB virtual file system
+    - Relative paths
+    - Manual change detection
+    - Browser storage limits
+  </Card>
+  
+  <Card title="Mobile" icon="mobile">
+    - React Native file system
+    - Scoped storage access
+    - Battery-efficient watchers
+    - Platform-specific paths
+  </Card>
+  
+  <Card title="All Platforms" icon="layer-group">
+    - Same API
+    - Same file structure
+    - Same events
+    - Transparent abstraction
+  </Card>
+</CardGroup>
+
+## File Metadata Cache
+
+The `MetadataCache` manager provides fast access to file metadata:
+
+```typescript
+// Get cached metadata for a file
+const metadata = app.metadataCache.getFileCache('notes/example.md');
+
+if (metadata) {
+    console.log('Frontmatter:', metadata.frontmatter);
+    console.log('Links:', metadata.links);
+    console.log('Tags:', metadata.tags);
+    console.log('Headings:', metadata.headings);
+}
+
+// Listen for cache updates
+app.metadataCache.on('changed', (file: TFile) => {
+    console.log('Metadata updated for:', file.path);
+});
+```
+
+<Tip>
+The metadata cache is automatically updated when files are modified, eliminating the need to parse files repeatedly.
+</Tip>
+
+## Search Service
+
+The `SearchService` provides full-text search across the workspace:
+
+```typescript
+// Search for files
+const results = await app.searchService.search('query string', {
+    caseSensitive: false,
+    wholeWord: false,
+    regex: false
+});
+
+for (const result of results) {
+    console.log('Match in:', result.file.path);
+    console.log('Matches:', result.matches);
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="File Operations">
+    - Always use workspace methods for file operations
+    - Handle errors gracefully (file may not exist, permissions, etc.)
+    - Listen to file events to keep UI in sync
+    - Use debouncing for operations triggered by file changes
+    
+    ```typescript
+    try {
+        const content = await app.workspace.read(filePath);
+        // Process content
+    } catch (error) {
+        console.error('Failed to read file:', error);
+        app.showNotice('Could not read file');
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Tab Management">
+    - Close unused tabs to free memory
+    - Pin important tabs to prevent accidental closure
+    - Handle empty tabs gracefully
+    - Save tab state when appropriate
+    
+    ```typescript
+    // Close all unpinned tabs
+    const tabs = app.tabManager.getTabs();
+    for (const tab of tabs) {
+        if (!tab.isPinned && !tab.isDirty) {
+            app.tabManager.closeTab(tab.id);
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Performance">
+    - Use metadata cache instead of parsing files repeatedly
+    - Batch file operations when possible
+    - Debounce search queries
+    - Lazy-load file lists for large workspaces
+    
+    ```typescript
+    // Use metadata cache for quick access
+    const metadata = app.metadataCache.getFileCache(filePath);
+    const tags = metadata?.tags || [];
+    
+    // Instead of parsing the file again
+    // const content = await app.workspace.read(filePath);
+    // const tags = extractTags(content); // Slow!
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="sitemap" href="/concepts/architecture">
+    Learn about Inkdown's overall architecture
+  </Card>
+  <Card title="Plugin System" icon="puzzle-piece" href="/concepts/plugin-system">
+    Build plugins that interact with the workspace
+  </Card>
+  <Card title="File System API" icon="folder-open" href="/concepts/workspace">
+    Complete file system API reference
+  </Card>
+  <Card title="Build a Plugin" icon="code" href="/plugins/introduction">
+    Create your first workspace-aware plugin
+  </Card>
+</CardGroup>

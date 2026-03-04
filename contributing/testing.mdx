@@ -1,0 +1,587 @@
+---
+title: 'Testing'
+description: 'Testing strategy, running tests, and writing tests for Inkdown'
+---
+
+Inkdown uses [Vitest](https://vitest.dev/) for unit and smoke testing with a comprehensive test suite to ensure code quality.
+
+## Test Structure
+
+Tests are organized in the `test/` directory:
+
+```
+test/
+├── unit/              # Unit tests
+│   ├── core/         # Core functionality tests
+│   ├── sync/         # Sync engine tests
+│   ├── storage/      # Storage tests
+│   ├── markdown/     # Markdown processor tests
+│   ├── theme/        # Theme manager tests
+│   └── ui/           # UI component tests
+├── smoke/            # Smoke tests (integration)
+│   ├── app.smoke.test.tsx
+│   ├── editor.smoke.test.tsx
+│   └── tabs.smoke.test.tsx
+└── results/          # Test results (generated)
+```
+
+## Running Tests
+
+### All Tests
+
+```bash
+# Run all tests (unit + smoke)
+bun run test
+```
+
+### Unit Tests
+
+```bash
+# Run unit tests only
+bun run test:unit
+```
+
+### Smoke Tests
+
+Smoke tests are integration tests that verify critical user flows:
+
+```bash
+# Run smoke tests only
+bun run test:smoke
+```
+
+### Watch Mode
+
+Run tests in watch mode during development:
+
+```bash
+# Watch mode (reruns on file changes)
+bun run test:watch
+```
+
+### Coverage
+
+Generate code coverage report:
+
+```bash
+# Generate coverage report
+bun run test:coverage
+```
+
+Coverage report is generated in `coverage/` directory.
+
+**Coverage thresholds** (from `vitest.config.ts`):
+
+```typescript
+thresholds: {
+    statements: 50,
+    branches: 50,
+    functions: 50,
+    lines: 50,
+}
+```
+
+### Interactive UI
+
+Run tests with interactive UI:
+
+```bash
+# Launch Vitest UI
+bun run test:ui
+```
+
+This opens a browser-based interface to explore tests, coverage, and results.
+
+## Test Configuration
+
+Configuration is in `vitest.config.ts`:
+
+```typescript
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+
+const isSmoke = process.env.TEST_TYPE === 'smoke';
+
+export default defineConfig({
+    plugins: [react()],
+    test: {
+        environment: 'jsdom',
+        setupFiles: isSmoke 
+            ? ['./test/smoke/setup.ts'] 
+            : ['./test/unit/setup.ts'],
+        include: isSmoke
+            ? ['test/smoke/**/*.smoke.test.ts', 'test/smoke/**/*.smoke.test.tsx']
+            : ['test/unit/**/*.test.ts', 'test/unit/**/*.test.tsx'],
+        globals: true,
+        clearMocks: true,
+        restoreMocks: true,
+        testTimeout: 10000,
+    },
+});
+```
+
+### Setup Files
+
+- **Unit tests**: `test/unit/setup.ts` - Mocks native APIs, IndexedDB, DOM
+- **Smoke tests**: `test/smoke/setup.ts` - Mocks Tauri APIs, browser APIs
+
+## Writing Unit Tests
+
+### Basic Test Structure
+
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { ThemeManager } from '@inkdown/core';
+import { createMockApp } from '../setup';
+
+describe('ThemeManager', () => {
+    let app: any;
+    let themeManager: ThemeManager;
+    
+    beforeEach(() => {
+        app = createMockApp();
+        themeManager = new ThemeManager(app);
+    });
+    
+    it('should initialize with default theme', () => {
+        expect(themeManager.getCurrentTheme()).toBe('default');
+    });
+    
+    it('should change theme', async () => {
+        await themeManager.setTheme('dark');
+        expect(themeManager.getCurrentTheme()).toBe('dark');
+    });
+});
+```
+
+### Testing Async Code
+
+```typescript
+it('should load config asynchronously', async () => {
+    const config = await configManager.loadConfig();
+    expect(config).toBeDefined();
+    expect(config.theme).toBe('light');
+});
+```
+
+### Testing Errors
+
+```typescript
+import { AppError } from '@inkdown/core/errors';
+
+it('should throw error for invalid config', () => {
+    expect(() => {
+        configManager.parseConfig('invalid');
+    }).toThrow(AppError);
+});
+
+it('should return error result for missing file', async () => {
+    const result = await fileManager.readFile('nonexistent.md');
+    expect(result.isErr()).toBe(true);
+    expect(result.error).toBeInstanceOf(Error);
+});
+```
+
+### Testing React Components
+
+```typescript
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Button } from './Button';
+
+it('should render button with text', () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText('Click me')).toBeInTheDocument();
+});
+
+it('should call onClick when clicked', async () => {
+    const onClick = vi.fn();
+    render(<Button onClick={onClick}>Click me</Button>);
+    
+    await userEvent.click(screen.getByText('Click me'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+});
+```
+
+### Mocking
+
+#### Mock Functions
+
+```typescript
+import { vi } from 'vitest';
+
+const mockCallback = vi.fn();
+const mockFetch = vi.fn().mockResolvedValue({ data: 'test' });
+
+it('should call callback', () => {
+    doSomething(mockCallback);
+    expect(mockCallback).toHaveBeenCalledWith('expected-arg');
+});
+```
+
+#### Mock Modules
+
+```typescript
+vi.mock('@inkdown/core/native', () => ({
+    native: {
+        fs: {
+            readFile: vi.fn().mockResolvedValue('file content'),
+            writeFile: vi.fn().mockResolvedValue(undefined),
+        },
+    },
+}));
+```
+
+#### Mock Implementation
+
+```typescript
+const mockReadFile = vi.fn()
+    .mockResolvedValueOnce('first call')
+    .mockResolvedValueOnce('second call')
+    .mockRejectedValueOnce(new Error('third call fails'));
+```
+
+### Test Utilities
+
+Located in `test/unit/setup.ts`:
+
+#### createMockApp
+
+```typescript
+import { createMockApp } from '../setup';
+
+const app = createMockApp();
+```
+
+#### createMockManifest
+
+```typescript
+import { createMockManifest } from '../setup';
+
+const manifest = createMockManifest({
+    id: 'my-plugin',
+    name: 'My Plugin',
+});
+```
+
+#### waitFor
+
+```typescript
+import { waitFor } from '../setup';
+
+await waitFor(() => element.textContent === 'loaded', 5000);
+```
+
+#### createDeferred
+
+```typescript
+import { createDeferred } from '../setup';
+
+const { promise, resolve, reject } = createDeferred<string>();
+setTimeout(() => resolve('done'), 1000);
+await promise;
+```
+
+## Writing Smoke Tests
+
+Smoke tests verify critical user workflows:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { App } from '@inkdown/desktop';
+
+describe('App Smoke Test', () => {
+    it('should launch app and show workspace', async () => {
+        const { container } = render(<App />);
+        
+        // Wait for app to initialize
+        await screen.findByTestId('workspace', {}, { timeout: 5000 });
+        
+        // Verify file explorer is visible
+        expect(screen.getByTestId('file-explorer')).toBeInTheDocument();
+        
+        // Verify editor is visible
+        expect(screen.getByTestId('editor')).toBeInTheDocument();
+    });
+    
+    it('should open and edit file', async () => {
+        const { container } = render(<App />);
+        
+        // Wait for app to load
+        await screen.findByTestId('workspace');
+        
+        // Click on a file
+        const file = screen.getByText('README.md');
+        await userEvent.click(file);
+        
+        // Wait for editor to load
+        await screen.findByTestId('editor-content');
+        
+        // Type in editor
+        const editor = screen.getByTestId('editor-content');
+        await userEvent.type(editor, '# Hello World');
+        
+        // Verify content was added
+        expect(editor).toHaveTextContent('# Hello World');
+    });
+});
+```
+
+## Testing Guidelines
+
+### Test Naming
+
+```typescript
+// Good ✓
+describe('ThemeManager', () => {
+    describe('setTheme', () => {
+        it('should change theme to dark mode', () => { });
+        it('should throw error for invalid theme', () => { });
+        it('should emit theme-changed event', () => { });
+    });
+});
+
+// Bad ✗
+describe('tests', () => {
+    it('test1', () => { });
+    it('works', () => { });
+});
+```
+
+### Test Independence
+
+Each test should be independent:
+
+```typescript
+// Good ✓
+beforeEach(() => {
+    themeManager = new ThemeManager(app);
+});
+
+it('test 1', () => {
+    themeManager.setTheme('dark');
+    expect(themeManager.getCurrentTheme()).toBe('dark');
+});
+
+it('test 2', () => {
+    // Fresh instance, not affected by test 1
+    expect(themeManager.getCurrentTheme()).toBe('default');
+});
+
+// Bad ✗
+let theme = 'light';
+
+it('test 1', () => {
+    theme = 'dark';  // Affects test 2!
+});
+
+it('test 2', () => {
+    expect(theme).toBe('light');  // Fails!
+});
+```
+
+### Test Coverage
+
+**What to test**:
+- ✅ Public APIs
+- ✅ Edge cases
+- ✅ Error handling
+- ✅ Complex logic
+- ✅ User workflows (smoke tests)
+
+**What NOT to test**:
+- ❌ Private methods directly (test through public API)
+- ❌ Third-party libraries
+- ❌ Trivial getters/setters
+- ❌ Implementation details
+
+### Arrange-Act-Assert Pattern
+
+```typescript
+it('should add item to list', () => {
+    // Arrange - Set up test data
+    const list = new List();
+    const item = { id: 1, name: 'Test' };
+    
+    // Act - Perform the action
+    list.add(item);
+    
+    // Assert - Verify the result
+    expect(list.size()).toBe(1);
+    expect(list.get(0)).toEqual(item);
+});
+```
+
+## Continuous Integration
+
+Tests run automatically on CI:
+
+```yaml
+# .github/workflows/test.yml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v1
+      - run: bun install
+      - run: bun run test:unit
+      - run: bun run test:smoke
+```
+
+Tests must pass before PRs can be merged.
+
+## Debugging Tests
+
+### Run Single Test
+
+```bash
+# Run specific test file
+bun run test unit/core/ThemeManager.test.ts
+
+# Run tests matching pattern
+bun run test --grep "ThemeManager"
+```
+
+### Debug with VS Code
+
+Add to `.vscode/launch.json`:
+
+```json
+{
+  "type": "node",
+  "request": "launch",
+  "name": "Debug Vitest Tests",
+  "runtimeExecutable": "bun",
+  "runtimeArgs": ["run", "test", "--run"],
+  "console": "integratedTerminal",
+  "internalConsoleOptions": "neverOpen"
+}
+```
+
+### Use console.log
+
+```typescript
+it('should do something', () => {
+    const result = doSomething();
+    console.log('Result:', result);  // Visible in test output
+    expect(result).toBe('expected');
+});
+```
+
+## Common Testing Patterns
+
+### Testing Event Emitters
+
+```typescript
+it('should emit event when theme changes', async () => {
+    const handler = vi.fn();
+    app.events.on('theme-changed', handler);
+    
+    await themeManager.setTheme('dark');
+    
+    expect(handler).toHaveBeenCalledWith({ theme: 'dark' });
+});
+```
+
+### Testing Timers
+
+```typescript
+import { vi } from 'vitest';
+
+it('should debounce calls', () => {
+    vi.useFakeTimers();
+    
+    const fn = vi.fn();
+    const debounced = debounce(fn, 1000);
+    
+    debounced();
+    debounced();
+    debounced();
+    
+    expect(fn).not.toHaveBeenCalled();
+    
+    vi.advanceTimersByTime(1000);
+    
+    expect(fn).toHaveBeenCalledTimes(1);
+    
+    vi.useRealTimers();
+});
+```
+
+### Testing localStorage
+
+```typescript
+beforeEach(() => {
+    localStorage.clear();
+});
+
+it('should save to localStorage', () => {
+    storage.save('key', 'value');
+    expect(localStorage.getItem('key')).toBe('value');
+});
+```
+
+### Testing IndexedDB
+
+```typescript
+import 'fake-indexeddb/auto';
+
+it('should store data in IndexedDB', async () => {
+    const db = await openDB('test-db');
+    await db.put('store', { id: 1, data: 'test' });
+    
+    const result = await db.get('store', 1);
+    expect(result).toEqual({ id: 1, data: 'test' });
+});
+```
+
+## Best Practices
+
+1. **Run tests before committing**
+   ```bash
+   bun run test:unit
+   ```
+
+2. **Write tests for bug fixes**
+   - Add test that reproduces the bug
+   - Fix the bug
+   - Verify test passes
+
+3. **Keep tests fast**
+   - Mock external dependencies
+   - Avoid unnecessary delays
+   - Use fake timers
+
+4. **Test behavior, not implementation**
+   ```typescript
+   // Good ✓
+   expect(list.includes(item)).toBe(true);
+   
+   // Bad ✗
+   expect(list._internalArray[0]).toBe(item);
+   ```
+
+5. **Use descriptive test names**
+   ```typescript
+   // Good ✓
+   it('should throw error when file does not exist', () => { });
+   
+   // Bad ✗
+   it('error test', () => { });
+   ```
+
+## Summary
+
+- Use Vitest for all tests
+- Separate unit tests (fast) from smoke tests (slow)
+- Run `bun run test` before committing
+- Aim for >50% code coverage
+- Write tests for bug fixes
+- Keep tests independent and fast
+- Use mocks for external dependencies
+- Follow AAA pattern (Arrange-Act-Assert)
+
+Next: [Mobile Overview](/contributing/mobile-overview)

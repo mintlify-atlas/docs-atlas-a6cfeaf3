@@ -1,0 +1,610 @@
+---
+title: Modals
+description: Create custom dialogs and search interfaces
+---
+
+## Overview
+
+Modals are dialog windows for user interaction. Inkdown provides several modal types:
+
+- `Modal`: Base class for custom dialogs
+- `FuzzySuggestModal`: Fuzzy search interface
+- `ConfirmModal`: Yes/No confirmation dialog
+
+```typescript
+import { Modal } from '@inkdown/api';
+
+class MyModal extends Modal {
+  onOpen() {
+    this.setTitle('My Modal');
+    this.contentEl.setText('Hello!');
+  }
+}
+
+const modal = new MyModal(this.app);
+modal.open();
+```
+
+## Modal Base Class
+
+### Class Definition
+
+```typescript
+abstract class Modal {
+  app: App;
+  containerEl: HTMLElement;
+  contentEl: HTMLElement;
+  titleEl: HTMLElement;
+
+  constructor(app: App);
+
+  open(): void;
+  close(): void;
+  onOpen(): void;
+  onClose(): void;
+  setTitle(title: string): this;
+}
+```
+
+### Properties
+
+<ResponseField name="app" type="App">
+  Reference to the application instance.
+</ResponseField>
+
+<ResponseField name="containerEl" type="HTMLElement">
+  The modal's container element.
+</ResponseField>
+
+<ResponseField name="contentEl" type="HTMLElement">
+  The modal's content area. Add your UI elements here.
+</ResponseField>
+
+<ResponseField name="titleEl" type="HTMLElement">
+  The modal's title element.
+</ResponseField>
+
+### Methods
+
+#### setTitle()
+
+<ParamField path="setTitle" type="(title: string) => this">
+  Set the modal title.
+</ParamField>
+
+```typescript
+this.setTitle('My Modal Title');
+```
+
+#### open()
+
+<ResponseField name="open" type="() => void">
+  Show the modal.
+</ResponseField>
+
+```typescript
+const modal = new MyModal(this.app);
+modal.open();
+```
+
+#### close()
+
+<ResponseField name="close" type="() => void">
+  Close the modal.
+</ResponseField>
+
+```typescript
+this.close();
+```
+
+#### onOpen()
+
+<ResponseField name="onOpen" type="() => void">
+  Called when the modal opens. Override to build your UI.
+</ResponseField>
+
+```typescript
+onOpen() {
+  this.setTitle('My Modal');
+  this.contentEl.createEl('p', { text: 'Content here' });
+}
+```
+
+#### onClose()
+
+<ResponseField name="onClose" type="() => void">
+  Called when the modal closes. Override to clean up.
+</ResponseField>
+
+```typescript
+onClose() {
+  // Clean up resources
+  this.cleanup();
+}
+```
+
+## Creating Custom Modals
+
+### Simple Modal
+
+```typescript
+import { Modal } from '@inkdown/api';
+
+class WelcomeModal extends Modal {
+  onOpen() {
+    this.setTitle('Welcome!');
+    
+    this.contentEl.createEl('p', {
+      text: 'Thanks for using my plugin!',
+    });
+    
+    const button = this.contentEl.createEl('button', {
+      text: 'Close',
+    });
+    button.addEventListener('click', () => {
+      this.close();
+    });
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'show-welcome',
+  name: 'Show Welcome',
+  callback: () => {
+    new WelcomeModal(this.app).open();
+  },
+});
+```
+
+### Modal with Form
+
+```typescript
+class InputModal extends Modal {
+  result: string = '';
+  onSubmit: (result: string) => void;
+
+  constructor(app: App, onSubmit: (result: string) => void) {
+    super(app);
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen() {
+    this.setTitle('Enter Text');
+
+    const { contentEl } = this;
+
+    contentEl.createEl('p', { text: 'Please enter some text:' });
+
+    const input = contentEl.createEl('input', {
+      type: 'text',
+      placeholder: 'Type here...',
+    });
+    input.style.width = '100%';
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.submit();
+      }
+    });
+
+    const buttonContainer = contentEl.createDiv();
+    buttonContainer.style.marginTop = '10px';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'flex-end';
+    buttonContainer.style.gap = '8px';
+
+    const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
+    cancelBtn.addEventListener('click', () => this.close());
+
+    const submitBtn = buttonContainer.createEl('button', { text: 'Submit' });
+    submitBtn.addEventListener('click', () => this.submit());
+
+    input.focus();
+  }
+
+  submit() {
+    const input = this.contentEl.querySelector('input');
+    if (input) {
+      this.result = input.value;
+      this.close();
+      this.onSubmit(this.result);
+    }
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'prompt-input',
+  name: 'Prompt for Input',
+  callback: () => {
+    new InputModal(this.app, (result) => {
+      this.showNotice(`You entered: ${result}`);
+    }).open();
+  },
+});
+```
+
+## ConfirmModal
+
+Pre-built confirmation dialog.
+
+### Class Definition
+
+```typescript
+class ConfirmModal extends Modal {
+  constructor(
+    app: App,
+    title: string,
+    message: string,
+    confirmText?: string,
+    cancelText?: string
+  );
+  onConfirm(): void;
+}
+```
+
+### Usage
+
+```typescript
+import { ConfirmModal } from '@inkdown/api';
+
+class DeleteConfirmModal extends ConfirmModal {
+  file: TFile;
+
+  constructor(app: App, file: TFile) {
+    super(
+      app,
+      'Delete File',
+      `Are you sure you want to delete "${file.name}"?`,
+      'Delete',
+      'Cancel'
+    );
+    this.file = file;
+  }
+
+  async onConfirm() {
+    await this.app.workspace.delete(this.file);
+    new Notice('File deleted');
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'delete-current-file',
+  name: 'Delete Current File',
+  callback: () => {
+    const file = this.app.workspaceUI.getActiveFile();
+    if (file) {
+      new DeleteConfirmModal(this.app, file).open();
+    }
+  },
+});
+```
+
+## FuzzySuggestModal
+
+Fuzzy search modal for selecting items.
+
+### Class Definition
+
+```typescript
+abstract class FuzzySuggestModal<T> extends Modal {
+  abstract getItems(): T[];
+  abstract getItemText(item: T): string;
+  abstract onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void;
+  renderSuggestion(match: FuzzyMatch<T>, el: HTMLElement): void;
+}
+
+interface FuzzyMatch<T> {
+  item: T;
+  match: SearchMatch;
+}
+
+interface SearchMatch {
+  score: number;
+  matches: Array<[number, number]>;
+}
+```
+
+### Simple Example
+
+```typescript
+import { FuzzySuggestModal } from '@inkdown/api';
+
+class FileSelectorModal extends FuzzySuggestModal<TFile> {
+  files: TFile[];
+
+  constructor(app: App, files: TFile[]) {
+    super(app);
+    this.files = files;
+  }
+
+  getItems(): TFile[] {
+    return this.files;
+  }
+
+  getItemText(file: TFile): string {
+    return file.path;
+  }
+
+  onChooseItem(file: TFile, evt: MouseEvent | KeyboardEvent) {
+    this.app.workspaceUI.openFile(file);
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'select-file',
+  name: 'Select File',
+  callback: async () => {
+    const files = await this.app.workspace.getMarkdownFiles();
+    new FileSelectorModal(this.app, files).open();
+  },
+});
+```
+
+### Custom Rendering
+
+```typescript
+interface CommandItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+class CommandPaletteModal extends FuzzySuggestModal<CommandItem> {
+  commands: CommandItem[];
+
+  constructor(app: App, commands: CommandItem[]) {
+    super(app);
+    this.commands = commands;
+  }
+
+  getItems(): CommandItem[] {
+    return this.commands;
+  }
+
+  getItemText(item: CommandItem): string {
+    return item.name;
+  }
+
+  renderSuggestion(match: FuzzyMatch<CommandItem>, el: HTMLElement) {
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '10px';
+
+    // Icon
+    const icon = el.createDiv({ cls: 'command-icon' });
+    icon.setText(match.item.icon);
+
+    // Content
+    const content = el.createDiv({ cls: 'command-content' });
+    content.createDiv({ cls: 'command-name', text: match.item.name });
+    content.createDiv({
+      cls: 'command-desc',
+      text: match.item.description,
+    });
+  }
+
+  onChooseItem(item: CommandItem, evt: MouseEvent | KeyboardEvent) {
+    this.app.commandManager.executeCommand(item.id);
+  }
+}
+```
+
+## Quick Finder Modal Example
+
+From the built-in Quick Finder plugin:
+
+```typescript
+import { SuggestModal, TFile, SearchResult, Notice } from '@inkdown/api';
+
+export class QuickFinderModal extends SuggestModal<TFile | SearchResult> {
+  private workspacePath = '';
+
+  constructor(app: App) {
+    super(app);
+    this.setLimit(50);
+  }
+
+  async onOpen() {
+    await super.onOpen();
+
+    const config = await this.app.configManager.loadConfig<{ workspace?: string }>('app');
+    this.workspacePath = config?.workspace || '';
+
+    if (!this.workspacePath) {
+      this.setTitle('No Workspace');
+      this.addText('Please open a workspace first.');
+      return;
+    }
+
+    this.setupShortcuts();
+    this.createFooter();
+  }
+
+  async getSuggestions(query: string): Promise<(TFile | SearchResult)[]> {
+    if (!query) {
+      const allFiles = await this.app.workspace.getMarkdownFiles();
+      const recentFiles = this.app.workspace.getRecentFiles();
+      return allFiles
+        .filter(f => recentFiles.includes(f.path))
+        .sort((a, b) => recentFiles.indexOf(a.path) - recentFiles.indexOf(b.path));
+    }
+
+    const results = await this.app.searchService.search({
+      query: query,
+      searchContent: true,
+      limit: 50
+    });
+
+    return results;
+  }
+
+  renderSuggestion(item: TFile | SearchResult, el: HTMLElement) {
+    let file: TFile;
+    let context: string | undefined;
+
+    if ('file' in item) {
+      const res = item as SearchResult;
+      file = res.file;
+      context = res.matchContext;
+    } else {
+      file = item as TFile;
+    }
+
+    el.classList.add('quick-finder-item');
+
+    const content = document.createElement('div');
+    content.classList.add('quick-finder-item-content');
+    el.appendChild(content);
+
+    const titleDiv = document.createElement('div');
+    titleDiv.classList.add('quick-finder-item-title');
+    titleDiv.textContent = file.path;
+    content.appendChild(titleDiv);
+
+    if (context) {
+      const ctxDiv = document.createElement('div');
+      ctxDiv.classList.add('quick-finder-item-context');
+      ctxDiv.textContent = context;
+      content.appendChild(ctxDiv);
+    }
+  }
+
+  async onChooseSuggestion(item: TFile | SearchResult, evt: MouseEvent | KeyboardEvent) {
+    let file: TFile;
+    if ('file' in item) {
+      file = (item as SearchResult).file;
+    } else {
+      file = item as TFile;
+    }
+
+    const openInNewTab = (evt.ctrlKey || evt.metaKey);
+
+    try {
+      await this.app.workspaceUI.openFile(file, openInNewTab);
+    } catch (error) {
+      console.error('Failed to open note:', error);
+      new Notice('Failed to open note');
+    }
+  }
+
+  private setupShortcuts() {
+    this.scope.register(['Shift'], 'Enter', (e) => {
+      e.preventDefault();
+      this.createNote(this.inputValue);
+      return false;
+    });
+  }
+
+  private async createNote(inputValue: string) {
+    const value = inputValue.trim();
+    if (!value) return;
+
+    try {
+      let notePath: string;
+      if (value.includes('/')) {
+        notePath = value.endsWith('.md') ? value : `${value}.md`;
+        const parentDir = this.app.fileSystemManager.getParentPath(notePath);
+        if (parentDir) {
+          await this.app.fileSystemManager.createDirectory(parentDir);
+        }
+      } else {
+        notePath = `${value}.md`;
+      }
+
+      await this.app.fileSystemManager.writeFile(notePath, '');
+      await this.app.tabManager.openTab(notePath, { openInNewTab: true });
+      this.close();
+    } catch (error) {
+      console.error('Failed to create note:', error);
+      new Notice('Failed to create note');
+    }
+  }
+}
+```
+
+## Best Practices
+
+### Always Close Modals
+
+```typescript
+// ✅ Good
+class MyModal extends Modal {
+  onOpen() {
+    const button = this.contentEl.createEl('button', { text: 'Close' });
+    button.addEventListener('click', () => this.close());
+  }
+}
+
+// ❌ Bad - no way to close
+class MyModal extends Modal {
+  onOpen() {
+    this.contentEl.createEl('p', { text: 'Content' });
+    // User can't close the modal!
+  }
+}
+```
+
+### Clean Up Resources
+
+```typescript
+class MyModal extends Modal {
+  private interval: number | null = null;
+
+  onOpen() {
+    this.interval = window.setInterval(() => {
+      this.update();
+    }, 1000);
+  }
+
+  onClose() {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+  }
+}
+```
+
+### Handle Keyboard Events
+
+```typescript
+class MyModal extends Modal {
+  onOpen() {
+    const input = this.contentEl.createEl('input');
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.submit();
+      } else if (e.key === 'Escape') {
+        this.close();
+      }
+    });
+  }
+}
+```
+
+### Provide Feedback
+
+```typescript
+class ProcessModal extends ConfirmModal {
+  async onConfirm() {
+    new Notice('Processing...');
+    
+    try {
+      await this.processFiles();
+      new Notice('Processing complete!');
+    } catch (error) {
+      new Notice('Processing failed');
+    }
+  }
+}
+```
+
+## Related
+
+- [Commands](/plugins/commands) - Trigger modals from commands
+- [Settings](/plugins/settings) - Settings UI
+- [Notices](/plugins/notices) - Toast notifications

@@ -1,0 +1,529 @@
+---
+title: Workspace
+description: File operations and workspace events
+---
+
+## Overview
+
+The `Workspace` interface provides methods for file operations and emits events when files change. Access it via `this.app.workspace`.
+
+```typescript
+const files = await this.app.workspace.getAllFiles();
+const content = await this.app.workspace.read(file);
+```
+
+## Interface Definition
+
+```typescript
+interface Workspace extends Events {
+  getRecentFiles(): string[];
+  addRecentFile(filePath: string): void;
+  getRoot(): string | null;
+  getAllFiles(): Promise<TFile[]>;
+  getMarkdownFiles(): Promise<TFile[]>;
+  activeEditor(): IEditor | null;
+  getAbstractFileByPath(path: string): TAbstractFile | null;
+  read(file: TFile): Promise<string>;
+  modify(file: TFile, content: string): Promise<void>;
+  create(path: string, content?: string): Promise<TFile>;
+  delete(file: TAbstractFile): Promise<void>;
+  rename(file: TAbstractFile, newPath: string): Promise<void>;
+
+  onFileCreate(callback: (file: TFile) => void): EventRef;
+  onFileModify(callback: (file: TFile) => void): EventRef;
+  onFileDelete(callback: (file: TAbstractFile) => void): EventRef;
+  onFileRename(callback: (file: TFile, oldPath: string) => void): EventRef;
+}
+```
+
+## File Types
+
+### TFile
+
+<ResponseField name="TFile" type="object">
+  Represents a file in the workspace.
+</ResponseField>
+
+```typescript
+interface TFile {
+  path: string;      // Full path: "folder/note.md"
+  name: string;      // File name: "note.md"
+  basename: string;  // Name without extension: "note"
+  extension: string; // File extension: "md"
+  stat: {
+    size: number;    // File size in bytes
+    mtime: number;   // Modified time (timestamp)
+    ctime: number;   // Created time (timestamp)
+  };
+}
+```
+
+### TFolder
+
+<ResponseField name="TFolder" type="object">
+  Represents a folder in the workspace.
+</ResponseField>
+
+```typescript
+interface TFolder {
+  path: string;
+  name: string;
+  children: TAbstractFile[];
+}
+```
+
+### TAbstractFile
+
+<ResponseField name="TAbstractFile" type="TFile | TFolder">
+  Union type for files and folders.
+</ResponseField>
+
+## Query Methods
+
+### getRoot()
+
+<ResponseField name="getRoot" type="() => string | null">
+  Get the workspace root path.
+</ResponseField>
+
+```typescript
+const root = this.app.workspace.getRoot();
+if (root) {
+  console.log('Workspace root:', root);
+}
+```
+
+### getAllFiles()
+
+<ResponseField name="getAllFiles" type="() => Promise<TFile[]>">
+  Get all files in the workspace.
+</ResponseField>
+
+```typescript
+const allFiles = await this.app.workspace.getAllFiles();
+console.log(`Total files: ${allFiles.length}`);
+
+for (const file of allFiles) {
+  console.log(file.path);
+}
+```
+
+### getMarkdownFiles()
+
+<ResponseField name="getMarkdownFiles" type="() => Promise<TFile[]>">
+  Get only markdown files (.md extension).
+</ResponseField>
+
+```typescript
+const mdFiles = await this.app.workspace.getMarkdownFiles();
+console.log(`Markdown files: ${mdFiles.length}`);
+```
+
+### getAbstractFileByPath()
+
+<ParamField path="getAbstractFileByPath" type="(path: string) => TAbstractFile | null">
+  Get a file or folder by its path.
+</ParamField>
+
+```typescript
+const file = this.app.workspace.getAbstractFileByPath('notes/todo.md');
+if (file) {
+  console.log('Found:', file.name);
+  
+  // Check type
+  if ('extension' in file) {
+    console.log('It\'s a file');
+  } else if ('children' in file) {
+    console.log('It\'s a folder');
+  }
+}
+```
+
+### getRecentFiles()
+
+<ResponseField name="getRecentFiles" type="() => string[]">
+  Get list of recently opened file paths.
+</ResponseField>
+
+```typescript
+const recent = this.app.workspace.getRecentFiles();
+console.log('Recent files:', recent);
+
+// Get TFile objects
+const recentFiles = recent
+  .map(path => this.app.workspace.getAbstractFileByPath(path))
+  .filter(f => f !== null) as TFile[];
+```
+
+### addRecentFile()
+
+<ParamField path="addRecentFile" type="(filePath: string) => void">
+  Add a file to the recent files list.
+</ParamField>
+
+```typescript
+this.app.workspace.addRecentFile('notes/new-note.md');
+```
+
+### activeEditor()
+
+<ResponseField name="activeEditor" type="() => IEditor | null">
+  Get the active editor instance.
+</ResponseField>
+
+```typescript
+const editor = this.app.workspace.activeEditor();
+if (editor) {
+  const content = editor.getValue();
+  console.log('Current content length:', content.length);
+}
+```
+
+## File Operations
+
+### read()
+
+<ParamField path="read" type="(file: TFile) => Promise<string>">
+  Read a file's contents.
+</ParamField>
+
+```typescript
+const file = this.app.workspace.getAbstractFileByPath('note.md') as TFile;
+if (file) {
+  const content = await this.app.workspace.read(file);
+  console.log('File content:', content);
+}
+```
+
+### modify()
+
+<ParamField path="modify" type="(file: TFile, content: string) => Promise<void>">
+  Modify a file's contents.
+</ParamField>
+
+```typescript
+const file = this.app.workspace.getAbstractFileByPath('note.md') as TFile;
+if (file) {
+  const content = await this.app.workspace.read(file);
+  const updated = content + '\n\n## New Section';
+  await this.app.workspace.modify(file, updated);
+  this.showNotice('File updated');
+}
+```
+
+<Warning>
+Modifying a file triggers the `onFileModify` event and updates the metadata cache.
+</Warning>
+
+### create()
+
+<ParamField path="create" type="(path: string, content?: string) => Promise<TFile>">
+  Create a new file.
+</ParamField>
+
+```typescript
+// Create empty file
+const newFile = await this.app.workspace.create('notes/new.md');
+
+// Create with content
+const fileWithContent = await this.app.workspace.create(
+  'notes/todo.md',
+  '# Todo List\n\n- [ ] Task 1\n- [ ] Task 2'
+);
+
+console.log('Created:', fileWithContent.path);
+```
+
+### delete()
+
+<ParamField path="delete" type="(file: TAbstractFile) => Promise<void>">
+  Delete a file or folder.
+</ParamField>
+
+```typescript
+const file = this.app.workspace.getAbstractFileByPath('old-note.md');
+if (file) {
+  await this.app.workspace.delete(file);
+  this.showNotice('File deleted');
+}
+```
+
+<Note>
+Deleting a folder recursively deletes all its contents.
+</Note>
+
+### rename()
+
+<ParamField path="rename" type="(file: TAbstractFile, newPath: string) => Promise<void>">
+  Rename or move a file.
+</ParamField>
+
+```typescript
+const file = this.app.workspace.getAbstractFileByPath('note.md');
+if (file) {
+  // Rename in same directory
+  await this.app.workspace.rename(file, 'renamed.md');
+  
+  // Move to different directory
+  await this.app.workspace.rename(file, 'archive/note.md');
+}
+```
+
+## Events
+
+Listen to file system events using the workspace event emitters.
+
+### onFileCreate()
+
+<ParamField path="onFileCreate" type="(callback: (file: TFile) => void) => EventRef">
+  Called when a file is created.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileCreate((file) => {
+    console.log('File created:', file.path);
+    this.showNotice(`Created: ${file.basename}`);
+  })
+);
+```
+
+### onFileModify()
+
+<ParamField path="onFileModify" type="(callback: (file: TFile) => void) => EventRef">
+  Called when a file is modified.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileModify((file) => {
+    console.log('File modified:', file.path);
+    
+    // Invalidate cache or update UI
+    this.updateFileStats(file);
+  })
+);
+```
+
+### onFileDelete()
+
+<ParamField path="onFileDelete" type="(callback: (file: TAbstractFile) => void) => EventRef">
+  Called when a file or folder is deleted.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileDelete((file) => {
+    console.log('Deleted:', file.path);
+    
+    // Clean up any references
+    this.removeFromCache(file.path);
+  })
+);
+```
+
+### onFileRename()
+
+<ParamField path="onFileRename" type="(callback: (file: TFile, oldPath: string) => void) => EventRef">
+  Called when a file is renamed or moved.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileRename((file, oldPath) => {
+    console.log(`Renamed: ${oldPath} -> ${file.path}`);
+    
+    // Update any stored paths
+    this.updateReferences(oldPath, file.path);
+  })
+);
+```
+
+## Common Patterns
+
+### Process All Markdown Files
+
+```typescript
+async processAllMarkdownFiles() {
+  const files = await this.app.workspace.getMarkdownFiles();
+  
+  for (const file of files) {
+    const content = await this.app.workspace.read(file);
+    
+    // Process content
+    const processed = this.processContent(content);
+    
+    // Save if changed
+    if (processed !== content) {
+      await this.app.workspace.modify(file, processed);
+    }
+  }
+  
+  this.showNotice(`Processed ${files.length} files`);
+}
+```
+
+### Watch for File Changes
+
+```typescript
+async onload() {
+  // Track file modifications
+  const modifiedFiles = new Set<string>();
+  
+  this.registerEvent(
+    this.app.workspace.onFileModify((file) => {
+      modifiedFiles.add(file.path);
+    })
+  );
+  
+  // Process modified files periodically
+  this.registerInterval(
+    window.setInterval(() => {
+      if (modifiedFiles.size > 0) {
+        console.log('Modified files:', Array.from(modifiedFiles));
+        modifiedFiles.clear();
+      }
+    }, 5000)
+  );
+}
+```
+
+### Create File with Frontmatter
+
+```typescript
+async createNoteWithFrontmatter(title: string, tags: string[]) {
+  const frontmatter = [
+    '---',
+    `title: ${title}`,
+    `created: ${new Date().toISOString()}`,
+    `tags: [${tags.join(', ')}]`,
+    '---',
+    '',
+    `# ${title}`,
+    '',
+  ].join('\n');
+  
+  const fileName = `${title.toLowerCase().replace(/\s+/g, '-')}.md`;
+  const file = await this.app.workspace.create(
+    `notes/${fileName}`,
+    frontmatter
+  );
+  
+  return file;
+}
+```
+
+### Backup File Before Modifying
+
+```typescript
+async safeModify(file: TFile, newContent: string) {
+  // Read original content
+  const originalContent = await this.app.workspace.read(file);
+  
+  // Create backup
+  const backupPath = file.path.replace('.md', '.backup.md');
+  await this.app.workspace.create(backupPath, originalContent);
+  
+  try {
+    // Modify file
+    await this.app.workspace.modify(file, newContent);
+    this.showNotice('File modified successfully');
+    
+    // Delete backup on success
+    const backup = this.app.workspace.getAbstractFileByPath(backupPath);
+    if (backup) {
+      await this.app.workspace.delete(backup);
+    }
+  } catch (error) {
+    this.showNotice('Failed to modify file');
+    console.error(error);
+  }
+}
+```
+
+### Find Files by Pattern
+
+```typescript
+async findFilesByPattern(pattern: RegExp): Promise<TFile[]> {
+  const allFiles = await this.app.workspace.getAllFiles();
+  return allFiles.filter(file => pattern.test(file.path));
+}
+
+// Usage
+const todoFiles = await this.findFilesByPattern(/todo/i);
+const dailyNotes = await this.findFilesByPattern(/\d{4}-\d{2}-\d{2}\.md$/);
+```
+
+## Best Practices
+
+### Always Check for Null
+
+```typescript
+// ✅ Good
+const file = this.app.workspace.getAbstractFileByPath('note.md');
+if (file && 'extension' in file) {
+  const content = await this.app.workspace.read(file);
+}
+
+// ❌ Bad - may throw if file doesn't exist
+const file = this.app.workspace.getAbstractFileByPath('note.md')!;
+const content = await this.app.workspace.read(file);
+```
+
+### Use Type Guards
+
+```typescript
+function isFile(file: TAbstractFile): file is TFile {
+  return 'extension' in file;
+}
+
+function isFolder(file: TAbstractFile): file is TFolder {
+  return 'children' in file;
+}
+
+// Usage
+const item = this.app.workspace.getAbstractFileByPath('path');
+if (item && isFile(item)) {
+  const content = await this.app.workspace.read(item);
+}
+```
+
+### Handle Errors Gracefully
+
+```typescript
+try {
+  await this.app.workspace.modify(file, newContent);
+} catch (error) {
+  console.error('Failed to modify file:', error);
+  this.showNotice('Failed to save changes');
+  
+  // Maybe restore from backup?
+}
+```
+
+### Batch Operations
+
+```typescript
+// Process files in batches to avoid blocking
+async processManyFiles(files: TFile[]) {
+  const batchSize = 10;
+  
+  for (let i = 0; i < files.length; i += batchSize) {
+    const batch = files.slice(i, i + batchSize);
+    
+    await Promise.all(
+      batch.map(file => this.processFile(file))
+    );
+    
+    // Give UI time to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+```
+
+## Related
+
+- [App Interface](/plugins/app-interface) - Access workspace from app
+- [Metadata Cache](/plugins/metadata-cache) - File metadata
+- [Events](/plugins/events) - Event system
+- [Editor](/plugins/editor) - Edit file content

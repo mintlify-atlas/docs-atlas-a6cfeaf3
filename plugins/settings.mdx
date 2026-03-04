@@ -1,0 +1,754 @@
+---
+title: Settings
+description: Create settings UI for your plugin
+---
+
+## Overview
+
+Provide user-configurable settings for your plugin using the `Setting` component and `PluginSettingTab` class.
+
+```typescript
+import { PluginSettingTab, Setting } from '@inkdown/api';
+
+class MySettingTab extends PluginSettingTab {
+  display() {
+    const { containerEl } = this;
+    
+    new Setting(containerEl)
+      .setName('My Setting')
+      .setDesc('Description here')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.enabled)
+        .onChange(async (value) => {
+          this.plugin.settings.enabled = value;
+          await this.plugin.saveSettings();
+        })
+      );
+  }
+}
+```
+
+## PluginSettingTab
+
+### Class Definition
+
+```typescript
+abstract class PluginSettingTab {
+  app: App;
+  plugin: Plugin;
+  containerEl: HTMLElement;
+
+  constructor(app: App, plugin: Plugin);
+
+  abstract display(): void;
+  hide(): void;
+}
+```
+
+### Properties
+
+<ResponseField name="app" type="App">
+  Reference to the application instance.
+</ResponseField>
+
+<ResponseField name="plugin" type="Plugin">
+  Reference to your plugin instance.
+</ResponseField>
+
+<ResponseField name="containerEl" type="HTMLElement">
+  Container where settings UI is rendered.
+</ResponseField>
+
+### Methods
+
+#### display()
+
+<ResponseField name="display" type="() => void">
+  Build your settings UI here. Called when the settings tab is opened.
+</ResponseField>
+
+```typescript
+display() {
+  const { containerEl } = this;
+  
+  // Clear previous content
+  containerEl.empty();
+  
+  // Add settings
+  new Setting(containerEl)
+    .setName('Setting Name')
+    .addToggle(/* ... */);
+}
+```
+
+#### hide()
+
+<ResponseField name="hide" type="() => void">
+  Called when the settings tab is closed. Clean up if needed.
+</ResponseField>
+
+```typescript
+hide() {
+  // Optional cleanup
+}
+```
+
+### Basic Example
+
+```typescript
+import { Plugin, PluginSettingTab, Setting } from '@inkdown/api';
+
+interface MyPluginSettings {
+  enabled: boolean;
+  apiKey: string;
+}
+
+const DEFAULT_SETTINGS: MyPluginSettings = {
+  enabled: true,
+  apiKey: '',
+};
+
+export default class MyPlugin extends Plugin {
+  settings: MyPluginSettings = DEFAULT_SETTINGS;
+
+  async onload() {
+    await this.loadSettings();
+    this.addSettingTab(new MySettingTab(this.app, this));
+  }
+
+  async loadSettings() {
+    const data = await this.loadData<MyPluginSettings>();
+    this.settings = { ...DEFAULT_SETTINGS, ...data };
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+}
+
+class MySettingTab extends PluginSettingTab {
+  plugin: MyPlugin;
+
+  constructor(app: App, plugin: MyPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display() {
+    const { containerEl } = this;
+
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName('Enable Plugin')
+      .setDesc('Turn the plugin on or off')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.enabled)
+        .onChange(async (value) => {
+          this.plugin.settings.enabled = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName('API Key')
+      .setDesc('Your API key for the service')
+      .addText(text => text
+        .setPlaceholder('Enter your API key')
+        .setValue(this.plugin.settings.apiKey)
+        .onChange(async (value) => {
+          this.plugin.settings.apiKey = value;
+          await this.plugin.saveSettings();
+        })
+      );
+  }
+}
+```
+
+## Setting Component
+
+### Class Definition
+
+```typescript
+class Setting {
+  settingEl: HTMLElement;
+  infoEl: HTMLElement;
+  nameEl: HTMLElement;
+  descEl: HTMLElement;
+  controlEl: HTMLElement;
+
+  constructor(containerEl: HTMLElement);
+
+  setName(name: string): this;
+  setDesc(desc: string): this;
+  setClass(cls: string): this;
+  setHeading(): this;
+  setDisabled(disabled: boolean): this;
+
+  addText(cb: (component: SettingTextComponent) => void): this;
+  addTextArea(cb: (component: SettingTextAreaComponent) => void): this;
+  addToggle(cb: (component: SettingToggleComponent) => void): this;
+  addDropdown(cb: (component: SettingDropdownComponent) => void): this;
+  addSlider(cb: (component: SettingSliderComponent) => void): this;
+  addButton(cb: (component: SettingButtonComponent) => void): this;
+  addExtraButton(cb: (component: SettingExtraButtonComponent) => void): this;
+  addColorPicker(cb: (component: SettingColorPickerComponent) => void): this;
+}
+```
+
+### Basic Methods
+
+#### setName()
+
+<ParamField path="setName" type="(name: string) => this">
+  Set the setting name/label.
+</ParamField>
+
+```typescript
+new Setting(containerEl)
+  .setName('Enable Feature');
+```
+
+#### setDesc()
+
+<ParamField path="setDesc" type="(desc: string) => this">
+  Set the setting description.
+</ParamField>
+
+```typescript
+new Setting(containerEl)
+  .setName('Enable Feature')
+  .setDesc('Turn this feature on or off');
+```
+
+#### setHeading()
+
+<ResponseField name="setHeading" type="() => this">
+  Make this setting a heading/section title.
+</ResponseField>
+
+```typescript
+new Setting(containerEl)
+  .setName('General Settings')
+  .setHeading();
+```
+
+#### setClass()
+
+<ParamField path="setClass" type="(cls: string) => this">
+  Add a CSS class to the setting element.
+</ParamField>
+
+```typescript
+new Setting(containerEl)
+  .setClass('my-custom-setting')
+  .setName('Custom Setting');
+```
+
+#### setDisabled()
+
+<ParamField path="setDisabled" type="(disabled: boolean) => this">
+  Enable or disable the setting.
+</ParamField>
+
+```typescript
+new Setting(containerEl)
+  .setName('Advanced Option')
+  .setDisabled(!this.plugin.settings.advancedMode)
+  .addToggle(/* ... */);
+```
+
+## Control Types
+
+### Text Input
+
+```typescript
+interface SettingTextComponent {
+  setValue(value: string): this;
+  setPlaceholder(placeholder: string): this;
+  onChange(callback: (value: string) => void): this;
+  getValue(): string;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('Username')
+  .setDesc('Your username')
+  .addText(text => text
+    .setPlaceholder('Enter username')
+    .setValue(this.plugin.settings.username)
+    .onChange(async (value) => {
+      this.plugin.settings.username = value;
+      await this.plugin.saveSettings();
+    })
+  );
+```
+
+### Text Area
+
+```typescript
+interface SettingTextAreaComponent {
+  setValue(value: string): this;
+  setPlaceholder(placeholder: string): this;
+  onChange(callback: (value: string) => void): this;
+  getValue(): string;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('Custom Template')
+  .setDesc('Enter your template')
+  .addTextArea(text => text
+    .setPlaceholder('Template content...')
+    .setValue(this.plugin.settings.template)
+    .onChange(async (value) => {
+      this.plugin.settings.template = value;
+      await this.plugin.saveSettings();
+    })
+  );
+```
+
+### Toggle
+
+```typescript
+interface SettingToggleComponent {
+  setValue(on: boolean): this;
+  onChange(callback: (value: boolean) => void): this;
+  getValue(): boolean;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('Enable Feature')
+  .setDesc('Turn feature on or off')
+  .addToggle(toggle => toggle
+    .setValue(this.plugin.settings.enabled)
+    .onChange(async (value) => {
+      this.plugin.settings.enabled = value;
+      await this.plugin.saveSettings();
+    })
+  );
+```
+
+### Dropdown
+
+```typescript
+interface SettingDropdownComponent {
+  addOption(value: string, display: string): this;
+  addOptions(options: Record<string, string>): this;
+  setValue(value: string): this;
+  onChange(callback: (value: string) => void): this;
+  getValue(): string;
+}
+```
+
+```typescript
+// Using addOptions
+new Setting(containerEl)
+  .setName('Theme')
+  .setDesc('Select theme')
+  .addDropdown(dropdown => dropdown
+    .addOptions({
+      'light': 'Light',
+      'dark': 'Dark',
+      'system': 'System',
+    })
+    .setValue(this.plugin.settings.theme)
+    .onChange(async (value) => {
+      this.plugin.settings.theme = value;
+      await this.plugin.saveSettings();
+    })
+  );
+
+// Using addOption
+new Setting(containerEl)
+  .setName('Language')
+  .addDropdown(dropdown => {
+    dropdown.addOption('en', 'English');
+    dropdown.addOption('es', 'Spanish');
+    dropdown.addOption('fr', 'French');
+    dropdown.setValue(this.plugin.settings.language);
+    dropdown.onChange(async (value) => {
+      this.plugin.settings.language = value;
+      await this.plugin.saveSettings();
+    });
+  });
+```
+
+### Slider
+
+```typescript
+interface SettingSliderComponent {
+  setLimits(min: number, max: number, step: number | 'any'): this;
+  setValue(value: number): this;
+  setDynamicTooltip(): this;
+  onChange(callback: (value: number) => void): this;
+  getValue(): number;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('Font Size')
+  .setDesc('Adjust the font size')
+  .addSlider(slider => slider
+    .setLimits(10, 30, 1)
+    .setValue(this.plugin.settings.fontSize)
+    .setDynamicTooltip()
+    .onChange(async (value) => {
+      this.plugin.settings.fontSize = value;
+      await this.plugin.saveSettings();
+    })
+  );
+```
+
+### Button
+
+```typescript
+interface SettingButtonComponent {
+  setButtonText(name: string): this;
+  setIcon(icon: string): this;
+  setCta(): this;
+  setWarning(): this;
+  onClick(callback: () => void): this;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('Clear Cache')
+  .setDesc('Remove all cached data')
+  .addButton(button => button
+    .setButtonText('Clear')
+    .setWarning()
+    .onClick(async () => {
+      await this.plugin.clearCache();
+      new Notice('Cache cleared');
+    })
+  );
+
+// Call-to-action button
+new Setting(containerEl)
+  .setName('Export Data')
+  .addButton(button => button
+    .setButtonText('Export')
+    .setCta()
+    .setIcon('download')
+    .onClick(() => {
+      this.plugin.exportData();
+    })
+  );
+```
+
+### Extra Button
+
+Small icon buttons for actions.
+
+```typescript
+interface SettingExtraButtonComponent {
+  setIcon(icon: string): this;
+  setTooltip(tooltip: string): this;
+  onClick(callback: () => void): this;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('API Key')
+  .addText(text => text.setValue(this.plugin.settings.apiKey))
+  .addExtraButton(button => button
+    .setIcon('refresh')
+    .setTooltip('Generate new API key')
+    .onClick(async () => {
+      this.plugin.settings.apiKey = await this.plugin.generateApiKey();
+      await this.plugin.saveSettings();
+      this.display(); // Refresh UI
+    })
+  )
+  .addExtraButton(button => button
+    .setIcon('copy')
+    .setTooltip('Copy to clipboard')
+    .onClick(() => {
+      navigator.clipboard.writeText(this.plugin.settings.apiKey);
+      new Notice('Copied to clipboard');
+    })
+  );
+```
+
+### Color Picker
+
+```typescript
+interface SettingColorPickerComponent {
+  setValue(value: string): this;
+  onChange(callback: (value: string) => void): this;
+  getValue(): string;
+}
+```
+
+```typescript
+new Setting(containerEl)
+  .setName('Highlight Color')
+  .setDesc('Choose highlight color')
+  .addColorPicker(color => color
+    .setValue(this.plugin.settings.highlightColor)
+    .onChange(async (value) => {
+      this.plugin.settings.highlightColor = value;
+      await this.plugin.saveSettings();
+    })
+  );
+```
+
+## Word Count Plugin Example
+
+From the built-in Word Count plugin:
+
+```typescript
+import { App, PluginSettingTab, Setting } from '@inkdown/api';
+import type WordCountPlugin from './WordCountPlugin';
+
+export class WordCountSettingTab extends PluginSettingTab {
+  plugin: WordCountPlugin;
+
+  constructor(app: App, plugin: WordCountPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+    this.icon = 'whole-word'; // Lucide icon name
+  }
+
+  display(): void {
+    const { containerEl } = this;
+
+    // Heading
+    new Setting(containerEl).setName('Word Count Settings').setHeading();
+
+    // Show word count toggle
+    new Setting(containerEl)
+      .setName('Show word count')
+      .setDesc('Display the number of words in the current note')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showWordCount)
+        .onChange(async (value) => {
+          this.plugin.settings.showWordCount = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    // Show character count toggle
+    new Setting(containerEl)
+      .setName('Show character count')
+      .setDesc('Display the number of characters in the current note')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showCharCount)
+        .onChange(async (value) => {
+          this.plugin.settings.showCharCount = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    // Count spaces toggle
+    new Setting(containerEl)
+      .setName('Count spaces in character count')
+      .setDesc('Include spaces when counting characters')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.countSpaces)
+        .onChange(async (value) => {
+          this.plugin.settings.countSpaces = value;
+          await this.plugin.saveSettings();
+        })
+      );
+  }
+}
+```
+
+## Advanced Patterns
+
+### Conditional Settings
+
+```typescript
+display() {
+  const { containerEl } = this;
+
+  new Setting(containerEl)
+    .setName('Enable Advanced Mode')
+    .addToggle(toggle => toggle
+      .setValue(this.plugin.settings.advancedMode)
+      .onChange(async (value) => {
+        this.plugin.settings.advancedMode = value;
+        await this.plugin.saveSettings();
+        this.display(); // Refresh to show/hide advanced settings
+      })
+    );
+
+  // Only show if advanced mode is enabled
+  if (this.plugin.settings.advancedMode) {
+    new Setting(containerEl)
+      .setName('Advanced Option')
+      .addText(text => text.setValue(this.plugin.settings.advancedOption));
+  }
+}
+```
+
+### Section Headings
+
+```typescript
+display() {
+  const { containerEl } = this;
+
+  new Setting(containerEl)
+    .setName('General Settings')
+    .setHeading();
+
+  new Setting(containerEl)
+    .setName('Option 1')
+    .addToggle(/* ... */);
+
+  new Setting(containerEl)
+    .setName('Option 2')
+    .addToggle(/* ... */);
+
+  new Setting(containerEl)
+    .setName('Advanced Settings')
+    .setHeading();
+
+  new Setting(containerEl)
+    .setName('Advanced Option')
+    .addText(/* ... */);
+}
+```
+
+### Multiple Controls
+
+```typescript
+new Setting(containerEl)
+  .setName('Date Format')
+  .addDropdown(dropdown => dropdown
+    .addOptions({
+      'YYYY-MM-DD': 'ISO (2024-01-15)',
+      'MM/DD/YYYY': 'US (01/15/2024)',
+      'DD/MM/YYYY': 'EU (15/01/2024)',
+    })
+    .setValue(this.plugin.settings.dateFormat)
+    .onChange(async (value) => {
+      this.plugin.settings.dateFormat = value;
+      await this.plugin.saveSettings();
+    })
+  )
+  .addExtraButton(button => button
+    .setIcon('refresh')
+    .setTooltip('Reset to default')
+    .onClick(async () => {
+      this.plugin.settings.dateFormat = 'YYYY-MM-DD';
+      await this.plugin.saveSettings();
+      this.display();
+    })
+  );
+```
+
+### Custom HTML
+
+```typescript
+display() {
+  const { containerEl } = this;
+
+  // Add description
+  containerEl.createEl('p', {
+    text: 'Configure your plugin settings below.',
+    cls: 'setting-description',
+  });
+
+  // Add link
+  const linkEl = containerEl.createEl('a', {
+    text: 'View documentation',
+    href: 'https://example.com/docs',
+  });
+  linkEl.setAttr('target', '_blank');
+
+  // Settings
+  new Setting(containerEl)
+    .setName('My Setting')
+    .addToggle(/* ... */);
+}
+```
+
+## Best Practices
+
+### Clear Empty Container
+
+```typescript
+// ✅ Good - clear before rebuilding
+display() {
+  const { containerEl } = this;
+  containerEl.empty();
+  
+  new Setting(containerEl).setName('Setting');
+}
+
+// ❌ Bad - duplicates on refresh
+display() {
+  const { containerEl } = this;
+  new Setting(containerEl).setName('Setting');
+}
+```
+
+### Always Save Changes
+
+```typescript
+// ✅ Good
+new Setting(containerEl)
+  .addToggle(toggle => toggle
+    .onChange(async (value) => {
+      this.plugin.settings.enabled = value;
+      await this.plugin.saveSettings(); // Save!
+    })
+  );
+
+// ❌ Bad - changes not persisted
+new Setting(containerEl)
+  .addToggle(toggle => toggle
+    .onChange((value) => {
+      this.plugin.settings.enabled = value;
+      // Forgot to save!
+    })
+  );
+```
+
+### Use Async/Await
+
+```typescript
+// ✅ Good
+.onChange(async (value) => {
+  this.plugin.settings.value = value;
+  await this.plugin.saveSettings();
+  await this.plugin.applySettings();
+})
+
+// ❌ Bad - not waiting for save
+.onChange((value) => {
+  this.plugin.settings.value = value;
+  this.plugin.saveSettings(); // Not awaited!
+})
+```
+
+### Provide Descriptions
+
+```typescript
+// ✅ Good
+new Setting(containerEl)
+  .setName('Enable Feature')
+  .setDesc('Enables the awesome feature that does X, Y, and Z')
+  .addToggle(/* ... */);
+
+// ❌ Bad - no description
+new Setting(containerEl)
+  .setName('Enable Feature')
+  .addToggle(/* ... */);
+```
+
+## Related
+
+- [Plugin Class](/plugins/plugin-class) - Data persistence
+- [Commands](/plugins/commands) - Settings-based commands
+- [Best Practices](/plugins/best-practices) - Development guidelines

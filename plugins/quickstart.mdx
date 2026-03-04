@@ -1,0 +1,256 @@
+---
+title: Quickstart
+description: Create your first Inkdown plugin in minutes
+---
+
+## Prerequisites
+
+- Node.js 18 or higher
+- A text editor
+- Basic TypeScript knowledge
+
+## Step 1: Create Plugin Directory
+
+Create a new directory for your plugin:
+
+```bash
+mkdir my-inkdown-plugin
+cd my-inkdown-plugin
+npm init -y
+```
+
+## Step 2: Install Dependencies
+
+Install the Inkdown plugin API:
+
+```bash
+npm install @inkdown/api
+npm install -D typescript esbuild
+```
+
+## Step 3: Create Manifest
+
+Create `manifest.json` in your plugin directory:
+
+```json manifest.json
+{
+  "id": "my-first-plugin",
+  "name": "My First Plugin",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "My first Inkdown plugin",
+  "author": "Your Name"
+}
+```
+
+<Note>
+The `id` must be unique and use kebab-case (lowercase with hyphens).
+</Note>
+
+## Step 4: Create Plugin Class
+
+Create `src/index.ts`:
+
+```typescript src/index.ts
+import { Plugin } from '@inkdown/api';
+
+export default class MyFirstPlugin extends Plugin {
+  async onload() {
+    console.log('My First Plugin loaded!');
+
+    // Add a command
+    this.addCommand({
+      id: 'hello-world',
+      name: 'Say Hello',
+      callback: () => {
+        this.showNotice('Hello from My First Plugin!');
+      },
+    });
+
+    // Add a status bar item
+    const statusBar = this.addStatusBarItem();
+    statusBar.setText('My Plugin');
+    statusBar.setTitle('Click me!');
+    statusBar.setOnClick(() => {
+      this.showNotice('Status bar clicked!');
+    });
+  }
+
+  async onunload() {
+    console.log('My First Plugin unloaded');
+  }
+}
+```
+
+## Step 5: Configure TypeScript
+
+Create `tsconfig.json`:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "declaration": true
+  },
+  "include": ["src/**/*"]
+}
+```
+
+## Step 6: Add Build Scripts
+
+Update `package.json`:
+
+```json package.json
+{
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --outfile=dist/main.js --format=cjs --external:@inkdown/api",
+    "dev": "npm run build -- --watch"
+  }
+}
+```
+
+## Step 7: Build Your Plugin
+
+```bash
+npm run build
+```
+
+This creates `dist/main.js` - your compiled plugin.
+
+## Step 8: Install Plugin in Inkdown
+
+1. Copy your plugin directory to Inkdown's plugins folder:
+   - **Linux**: `~/.config/inkdown/plugins/`
+   - **macOS**: `~/Library/Application Support/inkdown/plugins/`
+   - **Windows**: `%APPDATA%\inkdown\plugins\`
+
+2. Restart Inkdown or reload plugins
+
+3. Enable your plugin in Settings → Plugins
+
+## Step 9: Test Your Plugin
+
+1. Open the command palette (Ctrl/Cmd + P)
+2. Search for "Say Hello"
+3. Run the command to see your notification
+4. Check the status bar for your plugin item
+
+## Next Steps
+
+### Add Settings
+
+Create a settings tab for user configuration:
+
+```typescript
+import { PluginSettingTab, Setting } from '@inkdown/api';
+
+interface MyPluginSettings {
+  greeting: string;
+}
+
+const DEFAULT_SETTINGS: MyPluginSettings = {
+  greeting: 'Hello',
+};
+
+export default class MyFirstPlugin extends Plugin {
+  settings: MyPluginSettings = DEFAULT_SETTINGS;
+
+  async onload() {
+    await this.loadSettings();
+    
+    this.addSettingTab(new MySettingTab(this.app, this));
+
+    this.addCommand({
+      id: 'custom-greeting',
+      name: 'Custom Greeting',
+      callback: () => {
+        this.showNotice(`${this.settings.greeting} from My Plugin!`);
+      },
+    });
+  }
+
+  async loadSettings() {
+    const data = await this.loadData<MyPluginSettings>();
+    this.settings = { ...DEFAULT_SETTINGS, ...data };
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+}
+
+class MySettingTab extends PluginSettingTab {
+  plugin: MyFirstPlugin;
+
+  constructor(app: App, plugin: MyFirstPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display() {
+    const { containerEl } = this;
+
+    new Setting(containerEl)
+      .setName('Greeting Text')
+      .setDesc('Customize your greeting message')
+      .addText(text => text
+        .setValue(this.plugin.settings.greeting)
+        .onChange(async (value) => {
+          this.plugin.settings.greeting = value;
+          await this.plugin.saveSettings();
+        })
+      );
+  }
+}
+```
+
+### Add Editor Commands
+
+Create commands that work with the active editor:
+
+```typescript
+this.addCommand({
+  id: 'insert-timestamp',
+  name: 'Insert Timestamp',
+  editorCallback: (editor) => {
+    const timestamp = new Date().toISOString();
+    editor.replaceSelection(timestamp);
+  },
+});
+```
+
+### Listen to Events
+
+React to file system changes:
+
+```typescript
+async onload() {
+  this.registerEvent(
+    this.app.workspace.onFileCreate((file) => {
+      console.log('File created:', file.path);
+    })
+  );
+}
+```
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Plugin Class" icon="code" href="/plugins/plugin-class">
+    Lifecycle methods and base functionality
+  </Card>
+  <Card title="Commands" icon="terminal" href="/plugins/commands">
+    Register commands and shortcuts
+  </Card>
+  <Card title="Settings" icon="sliders" href="/plugins/settings">
+    Create settings UI
+  </Card>
+  <Card title="Best Practices" icon="check" href="/plugins/best-practices">
+    Guidelines for plugin development
+  </Card>
+</CardGroup>

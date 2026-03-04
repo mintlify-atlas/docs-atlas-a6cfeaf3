@@ -1,0 +1,239 @@
+---
+title: Architecture Overview
+description: High-level architecture of Inkdown's modular, cross-platform design
+---
+
+# Architecture Overview
+
+Inkdown is a modern, cross-platform markdown note-taking application built with **Tauri v2**, **React 19**, and **TypeScript**. It follows a modular monorepo architecture with a platform-agnostic core and platform-specific adapters, enabling true cross-platform compatibility across Desktop, Web, and potentially Mobile platforms.
+
+## High-Level Architecture
+
+The application is organized as a Bun monorepo with the following structure:
+
+1. **Apps Layer (`apps/`)**: Platform-specific entry points. Currently includes the Desktop app using Tauri.
+2. **Core Layer (`packages/core/`)**: Platform-agnostic business logic, state management, managers, and Plugin API.
+3. **UI Layer (`packages/ui/`)**: Shared React component library for design consistency.
+4. **Plugins Layer (`packages/plugins/`)**: Built-in plugins providing core functionality.
+5. **Platform Adapters**:
+   - **Editor Adapters**: `@inkdown/editor-codemirror` (with future support for React Native editors)
+   - **Native Adapters**: `@inkdown/native-tauri` (with future support for Web and React Native)
+   - **Storage Adapters**: `@inkdown/storage-tauri`
+
+```mermaid
+graph TB
+    subgraph "Apps Layer"
+        Desktop["Desktop App<br/>(Tauri + React)"]
+        Web["Web App<br/>(Future)"]
+    end
+
+    subgraph "Platform Adapters"
+        EditorCM["@inkdown/editor-codemirror"]
+        NativeTauri["@inkdown/native-tauri"]
+        Storage["@inkdown/storage-tauri"]
+    end
+
+    subgraph "Core Packages - Platform Agnostic"
+        Core["@inkdown/core<br/>(Business Logic)"]
+        UI["@inkdown/ui<br/>(Components)"]
+        Plugins["@inkdown/plugins<br/>(Built-in Plugins)"]
+    end
+
+    Desktop --> EditorCM
+    Desktop --> NativeTauri
+    Desktop --> Storage
+    Desktop --> Core
+    Desktop --> UI
+    Desktop --> Plugins
+    
+    Web -.-> EditorCM
+    Web -.-> Storage
+    Web -.-> Core
+    Web -.-> UI
+    Web -.-> Plugins
+    
+    EditorCM --> Core
+    NativeTauri --> Core
+    Storage --> Core
+    Plugins --> Core
+    Plugins --> UI
+    UI --> Core
+    
+    style Core fill:#4CAF50
+    style Plugins fill:#2196F3
+    style Desktop fill:#FF9800
+```
+
+## Core System (`@inkdown/core`)
+
+The Core package is the foundation of Inkdown. It exposes the main `App` class and various Managers that handle specific domains.
+
+### Key Managers
+
+| Manager | Description |
+|---------|-------------|
+| **App** | Central hub that initializes all managers and coordinates the application lifecycle |
+| **Plugins** | Unified facade for built-in and community plugin access via `app.plugins` |
+| **Workspace** | Manages file operations (CRUD) and file events. Acts as the "Vault" |
+| **WorkspaceUI** | Manages UI state including tabs, views, and active file |
+| **PluginManager** | Handles built-in plugin loading, enabling, and disabling |
+| **CommunityPluginManager** | Handles community plugin discovery, installation, and updates from GitHub |
+| **ConfigManager** | Persistent configuration storage (JSON files in app config directory) |
+| **ThemeManager** | Theme loading, switching, and CSS injection for built-in themes |
+| **CommunityThemeManager** | Community theme browsing, installation, and management from GitHub |
+| **FileSystemManager** | Bridge to the Rust backend for file system operations |
+| **EditorRegistry** | Manages CodeMirror editor instances and provides access to active editor |
+| **EditorStateManager** | Manages content of open files, dirty states, and auto-saving |
+| **TabManager** | Handles tab management, restoration, and persistence |
+| **CommandManager** | Central registry for all commands (plugin and built-in) |
+| **MetadataCache** | Caches file metadata and frontmatter for quick access |
+| **SyncManager** | Handles workspace synchronization |
+| **BookmarkManager** | Manages bookmarked files |
+| **FontManager** | System font discovery and management |
+
+### Initialization Flow
+
+```typescript
+// App initialization order (simplified from App.ts)
+async init(): Promise<void> {
+    // 1. Initialize config manager (needed by other managers)
+    await this.configManager.init();
+    
+    // 2. Load system fonts
+    await this.fontManager.loadSystemFonts();
+    
+    // 3. Load and apply theme
+    await this.loadTheme();
+    
+    // 4. Initialize community theme manager
+    await this.communityThemeManager.init();
+    
+    // 5. Initialize sync manager
+    await this.syncManager.init();
+    
+    // 6. Initialize bookmark manager
+    await this.bookmarkManager.initialize();
+    
+    // 7. Initialize community plugin manager and load plugins
+    await this.communityPluginManager.init();
+    await this.communityPluginManager.loadAllInstalledPlugins();
+    
+    // 8. Load all plugins (built-in + community)
+    await this.loadPlugins();
+    
+    // 9. Initialize tab manager and restore tabs
+    await this.tabManager.init();
+}
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant Workspace
+    participant FileSystemManager
+    participant Native as Tauri Backend
+
+    User->>App: Opens File
+    App->>Workspace: openFile(path)
+    Workspace->>FileSystemManager: read(path)
+    FileSystemManager->>Native: Tauri IPC
+    Native-->>FileSystemManager: File content
+    FileSystemManager-->>Workspace: Content
+    Workspace-->>App: File loaded
+    App->>User: Display in Editor
+```
+
+### Class Diagram
+
+```mermaid
+classDiagram
+    class App {
+        +Workspace workspace
+        +WorkspaceUI workspaceUI
+        +Plugins plugins
+        +PluginManager pluginManager
+        +CommunityPluginManager communityPluginManager
+        +ConfigManager configManager
+        +ThemeManager themeManager
+        +CommunityThemeManager communityThemeManager
+        +TabManager tabManager
+        +CommandManager commandManager
+        +EditorRegistry editorRegistry
+        +EditorStateManager editorStateManager
+        +MetadataCache metadataCache
+        +SyncManager syncManager
+        +init()
+    }
+
+    class Plugins {
+        +getAll()
+        +getPlugin(id)
+        +enable(id)
+        +disable(id)
+        +isEnabled(id)
+        +getEditorExtensions()
+    }
+
+    class Workspace {
+        +getMarkdownFiles()
+        +create()
+        +delete()
+        +read()
+        +modify()
+        +getRecentFiles()
+    }
+
+    class PluginManager {
+        +registerPlugin()
+        +loadPlugin()
+        +enablePlugin()
+        +disablePlugin()
+        +isPluginEnabled()
+    }
+
+    class ThemeManager {
+        +setTheme()
+        +setColorScheme()
+        +getAvailableThemes()
+        +loadCustomThemes()
+    }
+
+    App --> Workspace
+    App --> Plugins
+    App --> PluginManager
+    App --> ThemeManager
+    Plugins --> PluginManager
+    Plugins --> CommunityPluginManager
+```
+
+## Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| Desktop Framework | Tauri v2 (Rust backend) |
+| Frontend | React 19 + TypeScript |
+| Editor | CodeMirror 6 |
+| Styling | CSS Variables (no Tailwind) |
+| Package Manager | Bun |
+| Build Tool | Vite |
+| Linting | Biome |
+
+## Cross-Platform Architecture
+
+Inkdown achieves cross-platform compatibility through the **Bridge Pattern** and **Dependency Injection**:
+
+- **Platform-Agnostic Core**: All business logic is implemented without platform dependencies
+- **Abstract Interfaces**: Platform features (file system, editor, storage) are accessed through interfaces
+- **Platform Providers**: Each platform implements these interfaces (Tauri, Web, React Native)
+- **Runtime Registration**: Platform providers are registered at app startup
+
+## Related Documentation
+
+- [App and Managers](/architecture/app-managers) - App class and all managers
+- [Editor System](/architecture/editor-system) - Editor architecture and CodeMirror integration
+- [Theme System](/architecture/theme-system) - Theme management and customization
+- [Config System](/architecture/config-system) - Configuration persistence and management
+- [UI System](/architecture/ui-system) - Cross-platform UI abstractions

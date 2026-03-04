@@ -1,0 +1,649 @@
+---
+title: Editor
+description: Manipulate editor content and selections
+---
+
+## Overview
+
+The `IEditor` interface provides methods for reading and manipulating editor content. Access the active editor via `this.app.workspace.activeEditor()` or `this.app.editorRegistry.getActive()`.
+
+```typescript
+const editor = this.app.workspace.activeEditor();
+if (editor) {
+  const selection = editor.getSelection();
+  editor.replaceSelection('**' + selection + '**');
+}
+```
+
+## Interface Definition
+
+```typescript
+interface IEditor {
+  getSelection(): string;
+  replaceSelection(replacement: string): void;
+  getRange(from: EditorPosition, to: EditorPosition): string;
+  replaceRange(replacement: string, from: EditorPosition, to?: EditorPosition): void;
+  getCursor(type?: 'from' | 'to' | 'head' | 'anchor'): EditorPosition;
+  setCursor(pos: EditorPosition | number): void;
+  setSelection(anchor: EditorPosition | number, head?: EditorPosition | number): void;
+  getValue(): string;
+  setValue(content: string): void;
+  getLine(line: number): string;
+  lineCount(): number;
+  lastLine(): number;
+  posToOffset(pos: EditorPosition): number;
+  offsetToPos(offset: number): EditorPosition;
+  focus(): void;
+  hasFocus(): boolean;
+}
+```
+
+## Position Types
+
+### EditorPosition
+
+<ResponseField name="EditorPosition" type="object">
+  Represents a position in the editor.
+</ResponseField>
+
+```typescript
+interface EditorPosition {
+  line: number;  // Line number (0-indexed)
+  ch: number;    // Character offset in line (0-indexed)
+}
+```
+
+**Example positions**:
+```typescript
+{ line: 0, ch: 0 }   // Start of document
+{ line: 0, ch: 5 }   // 6th character of first line
+{ line: 10, ch: 0 }  // Start of line 11
+```
+
+### EditorRange
+
+<ResponseField name="EditorRange" type="object">
+  Represents a range in the editor.
+</ResponseField>
+
+```typescript
+interface EditorRange {
+  from: EditorPosition;
+  to: EditorPosition;
+}
+```
+
+## Getting Content
+
+### getValue()
+
+<ResponseField name="getValue" type="() => string">
+  Get the entire document content.
+</ResponseField>
+
+```typescript
+const editor = this.app.workspace.activeEditor();
+if (editor) {
+  const content = editor.getValue();
+  console.log('Document length:', content.length);
+  console.log('Word count:', content.split(/\s+/).length);
+}
+```
+
+### getSelection()
+
+<ResponseField name="getSelection" type="() => string">
+  Get the currently selected text.
+</ResponseField>
+
+```typescript
+const selection = editor.getSelection();
+if (selection) {
+  console.log('Selected text:', selection);
+} else {
+  console.log('No selection');
+}
+```
+
+### getLine()
+
+<ParamField path="getLine" type="(line: number) => string">
+  Get the text of a specific line.
+</ParamField>
+
+```typescript
+// Get first line
+const firstLine = editor.getLine(0);
+
+// Get current line
+const cursor = editor.getCursor();
+const currentLine = editor.getLine(cursor.line);
+
+console.log('Current line:', currentLine);
+```
+
+### getRange()
+
+<ParamField path="getRange" type="(from: EditorPosition, to: EditorPosition) => string">
+  Get text within a specific range.
+</ParamField>
+
+```typescript
+// Get text from line 0 ch 0 to line 5 ch 10
+const text = editor.getRange(
+  { line: 0, ch: 0 },
+  { line: 5, ch: 10 }
+);
+
+// Get entire first line
+const firstLine = editor.getRange(
+  { line: 0, ch: 0 },
+  { line: 1, ch: 0 }
+);
+```
+
+### lineCount()
+
+<ResponseField name="lineCount" type="() => number">
+  Get the total number of lines in the document.
+</ResponseField>
+
+```typescript
+const total = editor.lineCount();
+console.log(`Document has ${total} lines`);
+```
+
+### lastLine()
+
+<ResponseField name="lastLine" type="() => number">
+  Get the index of the last line (same as `lineCount() - 1`).
+</ResponseField>
+
+```typescript
+const lastLineIdx = editor.lastLine();
+const lastLineText = editor.getLine(lastLineIdx);
+console.log('Last line:', lastLineText);
+```
+
+## Setting Content
+
+### setValue()
+
+<ParamField path="setValue" type="(content: string) => void">
+  Replace the entire document content.
+</ParamField>
+
+```typescript
+editor.setValue('# New Document\n\nCompletely new content.');
+```
+
+<Warning>
+This replaces all content and resets the undo history. Use with caution.
+</Warning>
+
+### replaceSelection()
+
+<ParamField path="replaceSelection" type="(replacement: string) => void">
+  Replace the selected text.
+</ParamField>
+
+```typescript
+// Bold the selection
+const selection = editor.getSelection();
+if (selection) {
+  editor.replaceSelection(`**${selection}**`);
+}
+
+// Insert text at cursor
+if (!editor.getSelection()) {
+  editor.replaceSelection('inserted text');
+}
+```
+
+### replaceRange()
+
+<ParamField path="replaceRange" type="(replacement: string, from: EditorPosition, to?: EditorPosition) => void">
+  Replace text in a specific range.
+</ParamField>
+
+```typescript
+// Replace text in a range
+editor.replaceRange(
+  'new text',
+  { line: 0, ch: 0 },
+  { line: 0, ch: 8 }
+);
+
+// Insert at position (no 'to' parameter)
+editor.replaceRange(
+  'inserted ',
+  { line: 0, ch: 0 }
+);
+
+// Delete text (empty replacement)
+editor.replaceRange(
+  '',
+  { line: 0, ch: 0 },
+  { line: 0, ch: 5 }
+);
+```
+
+## Cursor and Selection
+
+### getCursor()
+
+<ParamField path="getCursor" type="(type?: 'from' | 'to' | 'head' | 'anchor') => EditorPosition">
+  Get the cursor position.
+</ParamField>
+
+```typescript
+// Get main cursor position
+const cursor = editor.getCursor();
+console.log(`Line ${cursor.line}, Column ${cursor.ch}`);
+
+// Get selection start
+const from = editor.getCursor('from');
+
+// Get selection end
+const to = editor.getCursor('to');
+
+// Check if there's a selection
+const hasSelection = from.line !== to.line || from.ch !== to.ch;
+```
+
+### setCursor()
+
+<ParamField path="setCursor" type="(pos: EditorPosition | number) => void">
+  Set the cursor position.
+</ParamField>
+
+```typescript
+// Set cursor to position
+editor.setCursor({ line: 5, ch: 10 });
+
+// Set cursor to offset
+editor.setCursor(100); // 100th character
+
+// Move to start of document
+editor.setCursor({ line: 0, ch: 0 });
+
+// Move to end of document
+const lastLine = editor.lastLine();
+const lastLineText = editor.getLine(lastLine);
+editor.setCursor({ line: lastLine, ch: lastLineText.length });
+```
+
+### setSelection()
+
+<ParamField path="setSelection" type="(anchor: EditorPosition | number, head?: EditorPosition | number) => void">
+  Set the selection range.
+</ParamField>
+
+```typescript
+// Select text from position to position
+editor.setSelection(
+  { line: 0, ch: 0 },
+  { line: 0, ch: 10 }
+);
+
+// Select using offsets
+editor.setSelection(0, 10);
+
+// Select entire first line
+editor.setSelection(
+  { line: 0, ch: 0 },
+  { line: 1, ch: 0 }
+);
+
+// Select entire document
+const lastLine = editor.lastLine();
+const lastLineText = editor.getLine(lastLine);
+editor.setSelection(
+  { line: 0, ch: 0 },
+  { line: lastLine, ch: lastLineText.length }
+);
+```
+
+## Position Conversion
+
+### posToOffset()
+
+<ParamField path="posToOffset" type="(pos: EditorPosition) => number">
+  Convert a position to a character offset.
+</ParamField>
+
+```typescript
+const pos = { line: 5, ch: 10 };
+const offset = editor.posToOffset(pos);
+console.log('Character offset:', offset);
+```
+
+### offsetToPos()
+
+<ParamField path="offsetToPos" type="(offset: number) => EditorPosition">
+  Convert a character offset to a position.
+</ParamField>
+
+```typescript
+const offset = 100;
+const pos = editor.offsetToPos(offset);
+console.log(`Position: line ${pos.line}, ch ${pos.ch}`);
+```
+
+## Focus
+
+### focus()
+
+<ResponseField name="focus" type="() => void">
+  Focus the editor.
+</ResponseField>
+
+```typescript
+editor.focus();
+```
+
+### hasFocus()
+
+<ResponseField name="hasFocus" type="() => boolean">
+  Check if the editor has focus.
+</ResponseField>
+
+```typescript
+if (editor.hasFocus()) {
+  console.log('Editor is focused');
+}
+```
+
+## Common Patterns
+
+### Insert Text at Cursor
+
+```typescript
+function insertText(editor: IEditor, text: string) {
+  editor.replaceSelection(text);
+}
+
+// Usage
+this.addCommand({
+  id: 'insert-date',
+  name: 'Insert Current Date',
+  editorCallback: (editor) => {
+    const date = new Date().toISOString().split('T')[0];
+    insertText(editor, date);
+  },
+});
+```
+
+### Wrap Selection
+
+```typescript
+function wrapSelection(
+  editor: IEditor,
+  before: string,
+  after: string = before
+) {
+  const selection = editor.getSelection();
+  if (selection) {
+    editor.replaceSelection(before + selection + after);
+  } else {
+    // No selection - insert markers and place cursor between them
+    const cursor = editor.getCursor();
+    editor.replaceSelection(before + after);
+    const newPos = editor.offsetToPos(
+      editor.posToOffset(cursor) + before.length
+    );
+    editor.setCursor(newPos);
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'bold',
+  name: 'Bold',
+  hotkey: ['Mod', 'b'],
+  editorCallback: (editor) => {
+    wrapSelection(editor, '**');
+  },
+});
+```
+
+### Transform Selection
+
+```typescript
+function transformSelection(
+  editor: IEditor,
+  transform: (text: string) => string
+) {
+  const selection = editor.getSelection();
+  if (selection) {
+    const transformed = transform(selection);
+    editor.replaceSelection(transformed);
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'uppercase',
+  name: 'Uppercase Selection',
+  editorCallback: (editor) => {
+    transformSelection(editor, text => text.toUpperCase());
+  },
+});
+
+this.addCommand({
+  id: 'titlecase',
+  name: 'Title Case',
+  editorCallback: (editor) => {
+    transformSelection(editor, text => 
+      text.replace(/\w\S*/g, txt => 
+        txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+      )
+    );
+  },
+});
+```
+
+### Modify Current Line
+
+```typescript
+function modifyCurrentLine(
+  editor: IEditor,
+  modify: (line: string) => string
+) {
+  const cursor = editor.getCursor();
+  const lineText = editor.getLine(cursor.line);
+  const modified = modify(lineText);
+  
+  editor.replaceRange(
+    modified,
+    { line: cursor.line, ch: 0 },
+    { line: cursor.line, ch: lineText.length }
+  );
+}
+
+// Usage
+this.addCommand({
+  id: 'toggle-todo',
+  name: 'Toggle Todo',
+  editorCallback: (editor) => {
+    modifyCurrentLine(editor, line => {
+      if (line.includes('- [ ]')) {
+        return line.replace('- [ ]', '- [x]');
+      } else if (line.includes('- [x]')) {
+        return line.replace('- [x]', '- [ ]');
+      } else {
+        return '- [ ] ' + line;
+      }
+    });
+  },
+});
+```
+
+### Insert Template
+
+```typescript
+function insertTemplate(editor: IEditor, template: string) {
+  const cursor = editor.getCursor();
+  editor.replaceSelection(template);
+  
+  // Find {{cursor}} placeholder and move cursor there
+  const placeholderPos = template.indexOf('{{cursor}}');
+  if (placeholderPos !== -1) {
+    const newOffset = editor.posToOffset(cursor) + placeholderPos;
+    const newPos = editor.offsetToPos(newOffset);
+    
+    // Remove placeholder
+    editor.replaceRange(
+      '',
+      newPos,
+      editor.offsetToPos(newOffset + '{{cursor}}'.length)
+    );
+    
+    editor.setCursor(newPos);
+  }
+}
+
+// Usage
+this.addCommand({
+  id: 'insert-code-block',
+  name: 'Insert Code Block',
+  editorCallback: (editor) => {
+    insertTemplate(editor, '```{{cursor}}\n\n```');
+  },
+});
+```
+
+### Get Word at Cursor
+
+```typescript
+function getWordAtCursor(editor: IEditor): string {
+  const cursor = editor.getCursor();
+  const line = editor.getLine(cursor.line);
+  
+  // Find word boundaries
+  let start = cursor.ch;
+  let end = cursor.ch;
+  
+  while (start > 0 && /\w/.test(line[start - 1])) {
+    start--;
+  }
+  
+  while (end < line.length && /\w/.test(line[end])) {
+    end++;
+  }
+  
+  return line.substring(start, end);
+}
+```
+
+### Select Word at Cursor
+
+```typescript
+function selectWordAtCursor(editor: IEditor) {
+  const cursor = editor.getCursor();
+  const line = editor.getLine(cursor.line);
+  
+  let start = cursor.ch;
+  let end = cursor.ch;
+  
+  while (start > 0 && /\w/.test(line[start - 1])) {
+    start--;
+  }
+  
+  while (end < line.length && /\w/.test(line[end])) {
+    end++;
+  }
+  
+  editor.setSelection(
+    { line: cursor.line, ch: start },
+    { line: cursor.line, ch: end }
+  );
+}
+```
+
+## Using with Commands
+
+Use the `editorCallback` property to create commands that operate on the active editor:
+
+```typescript
+this.addCommand({
+  id: 'insert-timestamp',
+  name: 'Insert Timestamp',
+  editorCallback: (editor) => {
+    const timestamp = new Date().toISOString();
+    editor.replaceSelection(timestamp);
+  },
+});
+
+this.addCommand({
+  id: 'count-words',
+  name: 'Count Words in Selection',
+  editorCallback: (editor) => {
+    const selection = editor.getSelection();
+    const wordCount = selection.split(/\s+/).filter(w => w).length;
+    this.showNotice(`Word count: ${wordCount}`);
+  },
+});
+```
+
+## Best Practices
+
+### Check for Active Editor
+
+```typescript
+// ✅ Good
+const editor = this.app.workspace.activeEditor();
+if (editor) {
+  const content = editor.getValue();
+}
+
+// ❌ Bad - may be null
+const editor = this.app.workspace.activeEditor()!;
+const content = editor.getValue();
+```
+
+### Preserve Selection
+
+```typescript
+function preserveSelection(editor: IEditor, callback: () => void) {
+  const from = editor.getCursor('from');
+  const to = editor.getCursor('to');
+  
+  callback();
+  
+  editor.setSelection(from, to);
+}
+```
+
+### Use editorCallback
+
+```typescript
+// ✅ Good - uses editorCallback
+this.addCommand({
+  id: 'my-command',
+  name: 'My Command',
+  editorCallback: (editor) => {
+    // Editor is guaranteed to exist
+    editor.replaceSelection('text');
+  },
+});
+
+// ❌ Bad - manual check needed
+this.addCommand({
+  id: 'my-command',
+  name: 'My Command',
+  callback: () => {
+    const editor = this.app.workspace.activeEditor();
+    if (editor) {
+      editor.replaceSelection('text');
+    }
+  },
+});
+```
+
+## Related
+
+- [Commands](/plugins/commands) - Create editor commands
+- [Editor Suggest](/plugins/editor-suggest) - Autocomplete
+- [Editor Extensions](/plugins/editor-extensions) - CodeMirror extensions
+- [Workspace](/plugins/workspace) - File operations

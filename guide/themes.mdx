@@ -1,0 +1,345 @@
+---
+title: Themes
+description: Customize Inkdown's appearance with built-in themes or install community themes
+---
+
+# Themes
+
+Inkdown provides a flexible theming system that allows you to customize the editor's appearance to match your preferences and reduce eye strain.
+
+## Built-in Themes
+
+Inkdown includes two built-in themes:
+
+### Default Dark
+
+- **ID**: `default-dark`
+- **Name**: Default Dark
+- **Author**: Inkdown
+- **Color Scheme**: Dark mode
+- **Description**: A carefully crafted dark theme with excellent contrast and readability
+
+### Default Light
+
+- **ID**: `default-light`
+- **Name**: Default Light
+- **Author**: Inkdown
+- **Color Scheme**: Light mode
+- **Description**: A clean, minimal light theme for daytime use
+
+Both themes are optimized for markdown editing with clear syntax highlighting and comfortable contrast ratios.
+
+## Color Schemes
+
+Inkdown themes support two color schemes:
+
+- **Dark**: Low-luminance background, high-luminance text
+- **Light**: High-luminance background, low-luminance text
+
+Each theme declares which color schemes it supports. Some custom themes may support both light and dark modes.
+
+## Switching Themes
+
+### Using Settings
+
+1. Open **Settings** with `Cmd/Ctrl+,`
+2. Navigate to **Appearance**
+3. Select a theme from the **Theme** dropdown
+4. The theme will be applied immediately
+
+### Programmatic Theme Switching
+
+Themes can be changed programmatically through the `ThemeManager`:
+
+```typescript
+// Switch to a specific theme
+await app.themeManager.setTheme('default-dark');
+
+// Get current theme
+const currentTheme = app.themeManager.getCurrentTheme();
+// Returns: 'default-dark' or 'default-light'
+
+// Get current color scheme
+const colorScheme = app.themeManager.getColorScheme();
+// Returns: 'dark' or 'light'
+```
+
+### Switching Color Scheme
+
+You can switch between light and dark modes:
+
+```typescript
+// Switch to dark mode
+await app.themeManager.setColorScheme('dark');
+
+// Switch to light mode
+await app.themeManager.setColorScheme('light');
+```
+
+If the current theme doesn't support the selected color scheme, Inkdown automatically switches to the default theme for that scheme.
+
+## How Themes Work
+
+### CSS Variables
+
+Inkdown uses CSS variables for theming, allowing instant theme changes without page reload:
+
+```css
+:root {
+  --color-bg: #1a1a1a;
+  --color-text: #e0e0e0;
+  --color-primary: #6b9eff;
+  --color-border: #333333;
+  /* ... more variables */
+}
+```
+
+### Theme Architecture
+
+The theming system consists of several components:
+
+1. **ThemeManager**: Core state management and event emission
+2. **ThemeConfig**: Theme metadata (name, author, supported modes)
+3. **ParsedTheme**: Theme colors as JavaScript objects
+4. **CSS Content**: Actual CSS variables for custom themes
+
+### Platform-Specific Rendering
+
+- **Desktop**: `DOMThemeRenderer` applies CSS to the document
+- **Mobile**: `ExpoThemeContext` provides theme via React Context
+
+Themes work consistently across both platforms.
+
+## Installing Community Themes
+
+<Warning>
+  Custom theme installation is coming in a future update. The theme system architecture is in place, and community theme support will be enabled soon.
+</Warning>
+
+### Theme Directory Structure
+
+Custom themes are stored in the themes directory with this structure:
+
+```
+themes/
+└── theme-name/
+    ├── manifest.json    # Theme metadata
+    ├── dark.css        # Dark mode styles
+    └── light.css       # Light mode styles (optional)
+```
+
+### Theme Manifest
+
+Each theme includes a `manifest.json` file:
+
+```json
+{
+  "name": "My Custom Theme",
+  "author": "Your Name",
+  "version": "1.0.0",
+  "description": "A beautiful custom theme",
+  "homepage": "https://github.com/username/inkdown-theme",
+  "modes": ["dark", "light"]
+}
+```
+
+### Theme CSS Files
+
+Theme CSS files define color variables:
+
+```css
+/* dark.css */
+:root {
+  /* Background colors */
+  --color-bg: #1e1e1e;
+  --color-bg-secondary: #252525;
+  --color-bg-tertiary: #2d2d2d;
+  
+  /* Text colors */
+  --color-text: #d4d4d4;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #707070;
+  
+  /* Accent colors */
+  --color-primary: #4a9eff;
+  --color-success: #4ec9b0;
+  --color-warning: #ce9178;
+  --color-error: #f48771;
+  
+  /* Editor syntax */
+  --color-syntax-keyword: #569cd6;
+  --color-syntax-string: #ce9178;
+  --color-syntax-comment: #6a9955;
+  --color-syntax-function: #dcdcaa;
+  
+  /* UI elements */
+  --color-border: #3e3e3e;
+  --color-hover: #2a2a2a;
+  --color-active: #0e639c;
+}
+```
+
+### Installing a Theme (Coming Soon)
+
+Once community theme support is enabled:
+
+1. Download the theme folder
+2. Open **Settings > Appearance**
+3. Click **Install Theme**
+4. Select the theme folder
+5. The theme will appear in your theme list
+
+### Reloading Themes
+
+After installing or modifying themes:
+
+```typescript
+await app.themeManager.reloadCustomThemes();
+```
+
+This refreshes the theme list without restarting the application.
+
+## Creating Custom Themes
+
+### Theme Development
+
+To create a custom theme:
+
+1. Create a new directory in the themes folder
+2. Add a `manifest.json` with theme metadata
+3. Create `dark.css` and/or `light.css` files
+4. Define CSS variables for all required colors
+5. Test the theme in Inkdown
+
+### Required CSS Variables
+
+Your theme should define these essential variables:
+
+**Background**
+- `--color-bg`: Main background
+- `--color-bg-secondary`: Secondary backgrounds
+- `--color-bg-tertiary`: Tertiary backgrounds
+
+**Text**
+- `--color-text`: Primary text
+- `--color-text-secondary`: Secondary text
+- `--color-text-muted`: Muted/disabled text
+
+**Accent Colors**
+- `--color-primary`: Primary accent
+- `--color-success`: Success states
+- `--color-warning`: Warning states
+- `--color-error`: Error states
+
+**Editor**
+- `--color-syntax-*`: Syntax highlighting colors
+- `--color-border`: Borders and dividers
+- `--color-hover`: Hover states
+- `--color-active`: Active/selected states
+
+### Theme Testing
+
+Test your theme thoroughly:
+
+1. Switch between color schemes
+2. Check all UI elements (editor, sidebar, modals)
+3. Verify syntax highlighting for various languages
+4. Test in both editor and preview modes
+5. Check contrast ratios for accessibility
+
+## Theme Events
+
+Listen for theme changes in your plugins:
+
+```typescript
+app.themeManager.on('theme-changed', (event: ThemeChangeEvent) => {
+  console.log('Theme changed:', event.themeId);
+  console.log('Color scheme:', event.colorScheme);
+  console.log('Theme object:', event.theme);
+  
+  // CSS content is available for custom themes
+  if (event.cssContent) {
+    console.log('Custom theme CSS:', event.cssContent);
+  }
+});
+```
+
+### Theme Change Event
+
+The `theme-changed` event includes:
+
+```typescript
+interface ThemeChangeEvent {
+  themeId: string;           // e.g., 'default-dark'
+  colorScheme: ColorScheme;  // 'dark' or 'light'
+  theme: ParsedTheme;        // Parsed CSS variables
+  cssContent?: string;       // Raw CSS for custom themes
+}
+```
+
+## Theme Persistence
+
+Your theme preference is automatically saved and persisted across sessions:
+
+- Theme selection saved to app config
+- Color scheme preference remembered
+- Settings sync with workspace (if sync enabled)
+
+## Performance
+
+### Instant Switching
+
+Theme changes are instant because:
+
+- CSS variables update without page reload
+- No JavaScript re-renders required
+- Theme state cached for quick access
+
+### Caching
+
+The ThemeManager caches parsed theme objects:
+
+```typescript
+const theme = await app.themeManager.getCurrentThemeObject();
+// Subsequent calls return cached version
+```
+
+## Accessibility
+
+When creating themes, consider:
+
+- **Contrast Ratios**: Minimum 4.5:1 for normal text, 3:1 for large text
+- **Color Blindness**: Don't rely solely on color to convey information
+- **Focus Indicators**: Ensure focus states are clearly visible
+- **Reduced Motion**: Avoid theme-related animations
+
+## Troubleshooting
+
+### Theme Not Applying
+
+1. Check console for errors
+2. Verify theme files are in correct location
+3. Ensure `manifest.json` is valid JSON
+4. Reload custom themes
+
+### Missing Colors
+
+If UI elements appear unstyled:
+
+1. Check that all required CSS variables are defined
+2. Verify variable names match exactly (case-sensitive)
+3. Test with a built-in theme first
+
+### Performance Issues
+
+If theme switching is slow:
+
+1. Clear theme cache
+2. Reduce number of custom themes
+3. Check for CSS syntax errors
+
+## Next Steps
+
+- Optimize your editing workflow with [Keyboard Shortcuts](/guide/keyboard-shortcuts)
+- Master the editor features in [Editor Basics](/guide/editor-basics)
+- Set up [Sync](/guide/sync) to share themes across devices

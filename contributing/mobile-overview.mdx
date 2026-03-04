@@ -1,0 +1,533 @@
+---
+title: 'Mobile Overview'
+description: 'Overview of Inkdown mobile development with React Native and Expo'
+---
+
+Inkdown's mobile app is built with React Native using the Expo framework, providing a native experience on iOS and Android.
+
+## Technology Stack
+
+### Core Technologies
+
+- **[Expo](https://expo.dev/)** (~54.0.30) - React Native framework
+- **[React Native](https://reactnative.dev/)** (0.81.5) - Mobile UI framework
+- **[Expo Router](https://docs.expo.dev/router/introduction/)** (~6.0.21) - File-based routing
+- **[React](https://react.dev/)** (19.1.0) - UI library
+
+### Key Libraries
+
+```json
+{
+  "@inkdown/core": "workspace:*",
+  "@inkdown/native-expo": "workspace:*",
+  "@inkdown/storage-mobile": "workspace:*",
+  "@inkdown/editor-webview": "workspace:*",
+  "@inkdown/plugins": "workspace:*",
+  "expo-file-system": "~19.0.21",
+  "react-native-mmkv": "^3.1.0",
+  "react-native-webview": "13.15.0",
+  "react-native-gesture-handler": "~2.28.0",
+  "react-native-reanimated": "~4.1.1",
+  "lucide-react-native": "^0.562.0"
+}
+```
+
+## Project Structure
+
+```
+apps/mobile/
+├── app/                    # Expo Router pages
+│   ├── _layout.tsx        # Root layout
+│   ├── workspace-setup.tsx
+│   └── (workspace)/       # Workspace routes
+│       ├── _layout.tsx
+│       └── index.tsx
+├── components/            # React components
+│   ├── FileExplorer/
+│   ├── Editor/
+│   ├── Settings/
+│   ├── Tabs/
+│   ├── Themes/
+│   ├── Plugins/
+│   └── shared/
+├── contexts/              # React contexts
+│   ├── AppContext.tsx
+│   └── ThemeContext.tsx
+├── hooks/                 # Custom hooks
+│   └── useTabManager.ts
+├── styles/                # Theme styles
+│   └── theme.ts
+├── assets/                # Images, fonts
+├── scripts/               # Build scripts
+├── app.json              # Expo configuration
+├── metro.config.js       # Metro bundler config
+└── package.json
+```
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js v18+
+- Bun v1.0+
+- Expo CLI
+- Android Studio (for Android development)
+- Xcode (for iOS development, macOS only)
+
+### Installation
+
+```bash
+# Install dependencies (from project root)
+bun install
+
+# Navigate to mobile app
+cd apps/mobile
+```
+
+### Running the App
+
+#### Start Metro Bundler
+
+```bash
+# From project root
+bun run --cwd apps/mobile start
+
+# Or from apps/mobile
+bun start
+```
+
+#### Run on Android
+
+```bash
+# From project root
+bun run dev:android
+
+# Or from apps/mobile
+bun run android
+```
+
+#### Run on iOS (macOS only)
+
+```bash
+# From project root
+bun run dev:ios
+
+# Or from apps/mobile
+bun run ios
+```
+
+#### Clear Cache
+
+If you encounter issues:
+
+```bash
+# From apps/mobile
+bun run start:clear
+
+# Or manually clear cache
+bun run clear-cache
+```
+
+## Architecture
+
+### Cross-Platform Design
+
+Inkdown uses a shared core with platform-specific adapters:
+
+```
+┌─────────────────────────────────────┐
+│         @inkdown/core               │  ← Platform-agnostic
+│    (Business logic, managers)       │
+└─────────────────────────────────────┘
+                 ↑
+                 │
+    ┌────────────┴────────────┐
+    │                         │
+┌───┴────────────┐  ┌────────┴─────────┐
+│ @inkdown/      │  │ @inkdown/        │
+│ native-tauri   │  │ native-expo      │  ← Platform adapters
+└────────────────┘  └──────────────────┘
+    ↑                         ↑
+    │                         │
+┌───┴────────────┐  ┌────────┴─────────┐
+│ Desktop App    │  │  Mobile App      │  ← Platform UIs
+│   (Tauri)      │  │  (Expo)          │
+└────────────────┘  └──────────────────┘
+```
+
+### Native Bridge
+
+The `@inkdown/native-expo` package provides platform-specific implementations:
+
+```typescript
+// packages/native-expo/src/index.ts
+import * as FileSystem from 'expo-file-system';
+import { NativeBridge } from '@inkdown/core/native';
+
+// File system operations
+NativeBridge.setProvider('fs', {
+    readFile: async (path: string) => {
+        return await FileSystem.readAsStringAsync(path);
+    },
+    writeFile: async (path: string, content: string) => {
+        await FileSystem.writeAsStringAsync(path, content);
+    },
+    // ... more operations
+});
+```
+
+### Storage
+
+Mobile uses MMKV for fast key-value storage:
+
+```typescript
+// packages/storage-mobile/src/index.ts
+import { MMKV } from 'react-native-mmkv';
+import { StorageBridge } from '@inkdown/core/storage';
+
+const storage = new MMKV();
+
+StorageBridge.setKVStorage({
+    get: (key: string) => storage.getString(key),
+    set: (key: string, value: string) => storage.set(key, value),
+    delete: (key: string) => storage.delete(key),
+    clear: () => storage.clearAll(),
+});
+```
+
+### Editor
+
+The editor uses a WebView with CodeMirror:
+
+```typescript
+// apps/mobile/components/Editor/EditorWebView.tsx
+import { WebView } from 'react-native-webview';
+
+function EditorWebView({ file, onContentChange }) {
+    return (
+        <WebView
+            source={{ uri: 'editor.html' }}
+            onMessage={(event) => {
+                const data = JSON.parse(event.nativeData);
+                if (data.type === 'contentChange') {
+                    onContentChange(data.content);
+                }
+            }}
+        />
+    );
+}
+```
+
+## Key Components
+
+### App Context
+
+Provides app instance to all components:
+
+```typescript
+// apps/mobile/contexts/AppContext.tsx
+import { createContext, useContext } from 'react';
+import type { App } from '@inkdown/core';
+
+const AppContext = createContext<App | null>(null);
+
+export function useApp() {
+    const app = useContext(AppContext);
+    if (!app) throw new Error('useApp must be used within AppProvider');
+    return app;
+}
+```
+
+### Theme Context
+
+Manages theme state:
+
+```typescript
+// apps/mobile/contexts/ThemeContext.tsx
+import { createContext, useState, useEffect } from 'react';
+import { useColorScheme } from 'react-native';
+import { useApp } from './AppContext';
+
+export function ThemeProvider({ children }) {
+    const app = useApp();
+    const systemColorScheme = useColorScheme();
+    const [theme, setTheme] = useState('default');
+    
+    useEffect(() => {
+        app.themeManager.setColorScheme(systemColorScheme ?? 'light');
+    }, [systemColorScheme]);
+    
+    return (
+        <ThemeContext.Provider value={{ theme, setTheme }}>
+            {children}
+        </ThemeContext.Provider>
+    );
+}
+```
+
+### File Explorer
+
+Displays workspace files:
+
+```typescript
+// apps/mobile/components/FileExplorer/MobileFileExplorer.tsx
+import { FlatList, TouchableOpacity, Text } from 'react-native';
+import { useApp } from '../../contexts/AppContext';
+
+export function MobileFileExplorer() {
+    const app = useApp();
+    const [files, setFiles] = useState([]);
+    
+    useEffect(() => {
+        loadFiles();
+    }, []);
+    
+    async function loadFiles() {
+        const result = await app.workspace.getMarkdownFiles();
+        if (result.isOk()) {
+            setFiles(result.value);
+        }
+    }
+    
+    return (
+        <FlatList
+            data={files}
+            keyExtractor={(item) => item.path}
+            renderItem={({ item }) => (
+                <TouchableOpacity onPress={() => openFile(item)}>
+                    <Text>{item.name}</Text>
+                </TouchableOpacity>
+            )}
+        />
+    );
+}
+```
+
+## Navigation
+
+Expo Router provides file-based routing:
+
+```typescript
+// app/_layout.tsx - Root layout
+import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+    return (
+        <Stack>
+            <Stack.Screen name="workspace-setup" />
+            <Stack.Screen name="(workspace)" />
+        </Stack>
+    );
+}
+
+// app/(workspace)/_layout.tsx - Workspace layout
+import { Drawer } from 'expo-router/drawer';
+
+export default function WorkspaceLayout() {
+    return (
+        <Drawer>
+            <Drawer.Screen name="index" options={{ title: 'Notes' }} />
+        </Drawer>
+    );
+}
+```
+
+## Styling
+
+Use React Native StyleSheet with theme variables:
+
+```typescript
+// apps/mobile/styles/theme.ts
+import { StyleSheet } from 'react-native';
+
+export const theme = {
+    colors: {
+        primary: '#6c99bb',
+        background: '#1e1e1e',
+        text: '#dcdcdc',
+        border: '#444',
+    },
+    spacing: {
+        xs: 4,
+        sm: 8,
+        md: 16,
+        lg: 24,
+    },
+};
+
+// Component styles
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: theme.colors.background,
+        padding: theme.spacing.md,
+    },
+    text: {
+        color: theme.colors.text,
+        fontSize: 16,
+    },
+});
+```
+
+## Platform-Specific Code
+
+Use Platform API for platform-specific logic:
+
+```typescript
+import { Platform } from 'react-native';
+
+const paddingTop = Platform.select({
+    ios: 20,
+    android: 0,
+});
+
+if (Platform.OS === 'ios') {
+    // iOS-specific code
+}
+```
+
+## Performance Considerations
+
+### FlatList Optimization
+
+```typescript
+<FlatList
+    data={items}
+    keyExtractor={(item) => item.id}
+    initialNumToRender={10}
+    maxToRenderPerBatch={10}
+    windowSize={5}
+    removeClippedSubviews={true}
+    getItemLayout={(data, index) => ({
+        length: ITEM_HEIGHT,
+        offset: ITEM_HEIGHT * index,
+        index,
+    })}
+    renderItem={({ item }) => <MemoizedItem item={item} />}
+/>
+```
+
+### Memoization
+
+```typescript
+import { memo, useMemo, useCallback } from 'react';
+
+const FileItem = memo(({ file, onPress }) => (
+    <TouchableOpacity onPress={onPress}>
+        <Text>{file.name}</Text>
+    </TouchableOpacity>
+));
+
+function FileList({ files }) {
+    const sortedFiles = useMemo(() => {
+        return [...files].sort((a, b) => a.name.localeCompare(b.name));
+    }, [files]);
+    
+    const handlePress = useCallback((file) => {
+        openFile(file);
+    }, []);
+    
+    return sortedFiles.map(file => (
+        <FileItem key={file.id} file={file} onPress={handlePress} />
+    ));
+}
+```
+
+## Building for Production
+
+### EAS Build
+
+Configure in `eas.json`:
+
+```json
+{
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    }
+  }
+}
+```
+
+Build commands:
+
+```bash
+# Preview build
+eas build --profile preview --platform android
+
+# Production build
+eas build --profile production --platform all
+```
+
+## Testing
+
+Mobile-specific tests are included in the main test suite. See [Testing Guide](/contributing/testing).
+
+## Debugging
+
+### React DevTools
+
+```bash
+# Shake device or press Cmd+D (iOS) / Cmd+M (Android)
+# Select "Toggle Element Inspector"
+```
+
+### Console Logs
+
+View logs in Metro bundler terminal:
+
+```typescript
+console.log('Debug:', value);
+console.warn('Warning:', value);
+console.error('Error:', value);
+```
+
+### Remote Debugging
+
+Enable in dev menu:
+- Shake device
+- Select "Remote JS Debugging"
+- Chrome DevTools will open
+
+## Common Issues
+
+### Metro Bundler Cache
+
+```bash
+bun run clear-cache
+bun run start:clear
+```
+
+### Native Module Errors
+
+```bash
+# Rebuild native modules
+cd apps/mobile
+rm -rf node_modules
+bun install
+```
+
+### iOS Pods Issues
+
+```bash
+cd apps/mobile/ios
+pod install --repo-update
+```
+
+## Next Steps
+
+- Read [Mobile Best Practices](/contributing/mobile-best-practices) for performance optimization
+- Review [Code Style](/contributing/code-style) for styling guidelines
+- Check [Development Guide](/contributing/development-guide) for workflow
+
+Happy mobile development! 📱

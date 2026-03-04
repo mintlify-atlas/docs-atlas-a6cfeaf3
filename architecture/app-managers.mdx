@@ -1,0 +1,437 @@
+---
+title: App and Managers
+description: The App class and its manager system that powers Inkdown
+---
+
+# App and Managers
+
+The `App` class is the central hub of Inkdown, coordinating all managers and the application lifecycle. This document covers the App class and all manager implementations.
+
+## App Class
+
+Location: `packages/core/src/App.ts`
+
+The App class is instantiated once per application and manages all core systems.
+
+### Construction
+
+```typescript
+const app = new App(builtInPlugins);
+await app.init();
+```
+
+### Properties
+
+All managers are accessible as properties on the App instance:
+
+```typescript
+app.workspace          // File operations
+app.workspaceUI        // UI state (tabs, views)
+app.pluginManager      // Built-in plugin management
+app.communityPluginManager  // Community plugins
+app.configManager      // Configuration persistence
+app.themeManager        // Theme switching
+app.communityThemeManager   // Community themes
+app.tabManager         // Tab management
+app.commandManager     // Command registry
+app.editorRegistry     // CodeMirror instances
+app.editorStateManager // Editor content state
+app.metadataCache      // File metadata cache
+app.syncManager        // Workspace sync
+app.bookmarkManager    // Bookmarks
+app.tagManager         // Tags
+app.fontManager        // System fonts
+app.fileSystemManager  // File system bridge
+app.dialog             // Dialog management
+```
+
+### Lifecycle Methods
+
+```typescript
+// Initialize the application
+await app.init();
+
+// Cleanup on shutdown
+await app.cleanup();
+```
+
+## Manager Descriptions
+
+### PluginManager
+
+**Location**: `packages/core/src/PluginManager.ts`
+
+Manages the lifecycle of built-in and community plugins.
+
+#### Key APIs
+
+```typescript
+// Register a plugin
+app.pluginManager.registerPlugin({
+  manifest: {
+    id: 'my-plugin',
+    name: 'My Plugin',
+    version: '1.0.0',
+    author: 'Author Name'
+  },
+  isBuiltIn: true,
+  loader: async () => ({ default: MyPluginClass })
+});
+
+// Enable/disable plugins
+await app.pluginManager.enablePlugin('plugin-id');
+await app.pluginManager.disablePlugin('plugin-id');
+
+// Query plugins
+const plugin = app.pluginManager.getPlugin('plugin-id');
+const allPlugins = app.pluginManager.getAllPlugins();
+const enabledPlugins = app.pluginManager.getEnabledPlugins();
+const isEnabled = app.pluginManager.isPluginEnabled('plugin-id');
+
+// Listen to plugin changes
+const unsubscribe = app.pluginManager.onPluginChange((pluginId, changeType) => {
+  console.log(`Plugin ${pluginId} ${changeType}`);
+});
+
+// Get plugin settings
+const settings = app.pluginManager.getPluginSettings<MySettings>('plugin-id');
+await app.pluginManager.savePluginSettings('plugin-id', newSettings);
+
+// Get all editor extensions from enabled plugins
+const extensions = app.pluginManager.getAllEditorExtensions();
+```
+
+#### Configuration Storage
+
+Plugin states are stored in `app.json` under the `plugins` key:
+
+```json
+{
+  "plugins": [
+    {
+      "id": "word-count",
+      "enabled": true,
+      "settings": {
+        "showCharCount": false
+      }
+    }
+  ]
+}
+```
+
+### ThemeManager
+
+**Location**: `packages/core/src/ThemeManager.ts`
+
+Manages theme loading, switching, and color scheme changes.
+
+#### Key APIs
+
+```typescript
+// Set theme
+await app.themeManager.setTheme('default-dark');
+
+// Set color scheme (dark/light)
+await app.themeManager.setColorScheme('dark');
+
+// Get current theme
+const themeId = app.themeManager.getCurrentTheme();
+const scheme = app.themeManager.getColorScheme();
+
+// Get all available themes
+const themes = app.themeManager.getThemes();
+
+// Get theme object for rendering
+const themeObj = await app.themeManager.getCurrentThemeObject();
+
+// Listen to theme changes
+app.themeManager.on('theme-changed', (event) => {
+  console.log('Theme changed:', event.themeId, event.colorScheme);
+  // event.theme contains parsed CSS variables
+  // event.cssContent contains raw CSS for custom themes
+});
+```
+
+#### Built-in Themes
+
+- `default-dark`: Default dark theme
+- `default-light`: Default light theme
+
+### CommunityThemeManager
+
+**Location**: `packages/core/src/CommunityThemeManager.ts`
+
+Handles browsing, installing, and managing community themes from GitHub.
+
+#### Key APIs
+
+```typescript
+// Get theme listings
+const listings = await app.communityThemeManager.getThemeListings();
+const listings = await app.communityThemeManager.getThemeListings(true); // force refresh
+
+// Get full theme details
+const theme = await app.communityThemeManager.getThemeDetails(listing);
+
+// Check installation status
+const isInstalled = app.communityThemeManager.isThemeInstalled('owner/repo');
+const version = app.communityThemeManager.getInstalledVersion('owner/repo');
+const hasUpdate = app.communityThemeManager.hasUpdate(theme);
+
+// Install/uninstall themes
+await app.communityThemeManager.installTheme(theme);
+await app.communityThemeManager.uninstallTheme('owner/repo');
+
+// Get installed themes
+const installed = app.communityThemeManager.getInstalledThemes();
+
+// Utility methods
+const screenshotUrl = app.communityThemeManager.getScreenshotUrl(listing);
+const repoUrl = app.communityThemeManager.getRepoUrl('owner/repo');
+
+// Clear cache
+app.communityThemeManager.clearCache();
+```
+
+### ConfigManager
+
+**Location**: `packages/core/src/ConfigManager.ts`
+
+Provides persistent key-value storage for application and plugin settings.
+
+#### Key APIs
+
+```typescript
+// Load configuration
+const config = await app.configManager.loadConfig<AppConfig>('app');
+
+// Save configuration
+await app.configManager.saveConfig('app', {
+  theme: 'default-dark',
+  colorScheme: 'dark',
+  plugins: [...]
+});
+
+// Clear cache
+await app.configManager.clearCache('app');
+await app.configManager.clearAllCaches();
+```
+
+#### Config Files
+
+| Key | File | Purpose |
+|-----|------|----------|
+| `app` | `app.json` | Main application settings |
+| `installed-themes` | `installed-themes.json` | Community theme metadata |
+| `installed-plugins` | `installed-plugins.json` | Community plugin metadata |
+| `editor` | `editor.json` | Editor preferences |
+| `shortcuts` | `shortcuts.json` | Keyboard shortcuts |
+
+### TabManager
+
+**Location**: `packages/core/src/TabManager.ts`
+
+Manages editor tabs and their state.
+
+#### Key APIs
+
+```typescript
+// Open tabs
+await app.tabManager.openTab('/path/to/file.md');
+await app.tabManager.openTab('/path/to/file.md', { 
+  openInNewTab: true,
+  pinned: false 
+});
+
+// Close tabs
+await app.tabManager.closeTab('tab-id');
+await app.tabManager.closeAllTabs();
+
+// Switch tabs
+app.tabManager.switchTab('tab-id');
+app.tabManager.switchToTabByIndex(0);
+app.tabManager.switchToNextTab();
+app.tabManager.switchToPreviousTab();
+
+// Get tabs
+const activeTab = app.tabManager.getActiveTab();
+const allTabs = app.tabManager.getAllTabs();
+const tab = app.tabManager.getTabById('tab-id');
+
+// Tab content caching
+await app.tabManager.cacheTab('tab-id', { content: '...' });
+const cached = await app.tabManager.getCachedTab('tab-id');
+await app.tabManager.clearCache('tab-id');
+
+// Mark as dirty (unsaved)
+app.tabManager.markTabDirty('tab-id', true);
+
+// Update file path (for renames)
+await app.tabManager.updateTabFilePath('/old/path.md', '/new/path.md');
+
+// Listen to tab changes
+const unsubscribe = app.tabManager.onTabChange((tabId) => {
+  console.log('Active tab:', tabId);
+});
+```
+
+#### Tab Structure
+
+```typescript
+interface Tab {
+  id: string;
+  filePath: string;
+  title: string;
+  isPinned: boolean;
+  isDirty: boolean;
+}
+```
+
+### CommandManager
+
+**Location**: `packages/core/src/managers/CommandManager.ts`
+
+Central registry for all commands (keyboard shortcuts, command palette).
+
+#### Key APIs
+
+```typescript
+// Register a command
+app.commandManager.registerCommand({
+  id: 'my-plugin:my-command',
+  name: 'My Command',
+  hotkey: ['Mod', 'K'],
+  callback: () => {
+    console.log('Command executed');
+  }
+});
+
+// Register with checkCallback (conditional execution)
+app.commandManager.registerCommand({
+  id: 'conditional-command',
+  name: 'Conditional Command',
+  checkCallback: (checking: boolean) => {
+    const canRun = someCondition();
+    if (checking) return canRun;
+    // Actually execute
+    doSomething();
+    return true;
+  }
+});
+
+// Execute command
+const handled = app.commandManager.executeCommand('command-id');
+
+// Query commands
+const commands = app.commandManager.getCommands();
+const command = app.commandManager.getCommand('command-id');
+
+// Unregister
+app.commandManager.unregisterCommand('command-id');
+```
+
+### EditorRegistry
+
+**Location**: `packages/core/src/EditorRegistry.ts`
+
+Tracks CodeMirror editor instances.
+
+#### Key APIs
+
+```typescript
+// Register an editor (typically done by editor component)
+app.editorRegistry.register('editor-id', editorView);
+
+// Set active editor
+app.editorRegistry.setActive('editor-id');
+
+// Get active editor
+const view = app.editorRegistry.getActive();
+
+// Get specific editor
+const view = app.editorRegistry.get('editor-id');
+
+// Check registration
+const exists = app.editorRegistry.has('editor-id');
+
+// Get all editor IDs
+const ids = app.editorRegistry.getAll();
+
+// Unregister
+app.editorRegistry.unregister('editor-id');
+```
+
+### Workspace
+
+**Location**: `packages/core/src/managers/Workspace.ts`
+
+Manages file operations and file events.
+
+#### Key APIs
+
+```typescript
+// Get files
+const allFiles = await app.workspace.getAllFiles();
+const mdFiles = await app.workspace.getMarkdownFiles();
+const matching = await app.workspace.getFilesMatching('*.md');
+
+// File operations
+const content = await app.workspace.read(file);
+await app.workspace.modify(file, newContent);
+const newFile = await app.workspace.create('/path/to/file.md', 'content');
+await app.workspace.delete(file);
+await app.workspace.rename(file, '/new/path.md');
+const copy = await app.workspace.copy(file, '/new/path.md');
+
+// Path utilities
+const root = app.workspace.getRoot();
+const relativePath = app.workspace.getRelativePath(absolutePath);
+const absolutePath = app.workspace.getAbsolutePath(relativePath);
+const file = app.workspace.getAbstractFileByPath('path/to/file.md');
+
+// Recent files
+const recentFiles = app.workspace.getRecentFiles();
+
+// Active editor
+const editor = app.workspace.activeEditor;
+
+// File events
+app.workspace.onFileCreate((file) => {
+  console.log('File created:', file.path);
+});
+
+app.workspace.onFileModify((file) => {
+  console.log('File modified:', file.path);
+});
+
+app.workspace.onFileDelete((file) => {
+  console.log('File deleted:', file.path);
+});
+
+app.workspace.onFileRename((file, oldPath) => {
+  console.log('File renamed:', oldPath, '->', file.path);
+});
+```
+
+## Manager Initialization Order
+
+The App initializes managers in a specific order to handle dependencies:
+
+1. **ConfigManager** - Needed by all other managers for loading settings
+2. **FontManager** - Load system fonts early
+3. **ThemeManager** - Apply theme before UI renders
+4. **CommunityThemeManager** - Scan installed themes
+5. **SyncManager** - Initialize sync system
+6. **BookmarkManager** - Load bookmarks
+7. **TagManager** - Load tags
+8. **CommunityPluginManager** - Load community plugins
+9. **PluginManager** - Load and enable all plugins
+10. **TabManager** - Restore tabs from last session
+11. **CommandManager** - Register core commands
+
+## Related Documentation
+
+- [Architecture Overview](/architecture/overview) - High-level architecture
+- [Editor System](/architecture/editor-system) - Editor architecture
+- [Theme System](/architecture/theme-system) - Theme management details
+- [Config System](/architecture/config-system) - Configuration details

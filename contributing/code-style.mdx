@@ -1,0 +1,591 @@
+---
+title: 'Code Style'
+description: 'Coding conventions, linting, and formatting standards for Inkdown'
+---
+
+Inkdown follows strict coding conventions to maintain code quality and consistency across the codebase.
+
+## Code Formatting
+
+We use [Biome](https://biomejs.dev/) for linting and formatting. Configuration is in `biome.json` at the project root.
+
+### Running Biome
+
+```bash
+# Check for issues
+bun run lint
+
+# Fix issues automatically
+bun run lint:fix
+
+# Format code
+bun run format
+
+# Run all checks (recommended before commit)
+bun run check
+
+# Fix all issues
+bun run check:fix
+```
+
+### Biome Configuration
+
+Key settings from `biome.json`:
+
+```json
+{
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 4,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always"
+    }
+  }
+}
+```
+
+**Summary**:
+- 4 spaces for indentation (not tabs)
+- 100 character line width
+- Single quotes for JavaScript/TypeScript
+- Double quotes for JSX attributes
+- Always use semicolons
+- Always use trailing commas
+- Always use parentheses around arrow function parameters
+
+## TypeScript
+
+### Strict Mode
+
+Always use TypeScript strict mode:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  }
+}
+```
+
+### Type Safety
+
+**DO**:
+- Use explicit types for function parameters and return values
+- Use `unknown` instead of `any` when type is truly unknown
+- Use type guards to narrow types
+- Export types from their defining module
+
+```typescript
+// Good ✓
+function processFile(path: string): Promise<string> {
+    return readFile(path);
+}
+
+function parseData(data: unknown): User {
+    if (!isUserData(data)) {
+        throw new Error('Invalid user data');
+    }
+    return data;
+}
+
+// Bad ✗
+function processFile(path) {
+    return readFile(path);
+}
+
+function parseData(data: any): User {
+    return data;
+}
+```
+
+### Interfaces vs Types
+
+- Use **interfaces** for object shapes
+- Use **type aliases** for unions, primitives, and utility types
+
+```typescript
+// Interfaces for objects
+interface User {
+    id: string;
+    name: string;
+    email: string;
+}
+
+// Types for unions and utilities
+type Status = 'active' | 'inactive' | 'pending';
+type Readonly<T> = { readonly [K in keyof T]: T[K] };
+```
+
+### Enums
+
+Use string enums with initializers:
+
+```typescript
+enum ViewMode {
+    Edit = 'edit',
+    Preview = 'preview',
+    SideBySide = 'side-by-side',
+}
+```
+
+## File Organization
+
+### File Structure
+
+```
+packages/core/src/
+├── managers/          # Core managers
+│   ├── CommandManager.ts
+│   └── ThemeManager.ts
+├── types/            # Type definitions
+│   └── config.ts
+├── utils/            # Utility functions
+│   └── logger.ts
+└── index.ts          # Public exports
+```
+
+### Naming Conventions
+
+- **Files**: PascalCase for classes, camelCase for utilities
+  - `ThemeManager.ts` (class)
+  - `logger.ts` (utility)
+  - `index.ts` (barrel export)
+
+- **Classes**: PascalCase
+  ```typescript
+  class ThemeManager { }
+  ```
+
+- **Interfaces**: PascalCase with `I` prefix for implementations
+  ```typescript
+  interface IThemeProvider { }
+  interface ThemeConfig { }  // No prefix for data types
+  ```
+
+- **Functions**: camelCase
+  ```typescript
+  function parseMarkdown() { }
+  ```
+
+- **Constants**: UPPER_SNAKE_CASE for true constants
+  ```typescript
+  const DEFAULT_THEME = 'light';
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  ```
+
+- **Variables**: camelCase
+  ```typescript
+  const userName = 'John';
+  let isActive = true;
+  ```
+
+### Imports
+
+**Import order**:
+1. External packages
+2. Internal packages (from `@inkdown/`)
+3. Relative imports (same package)
+4. Type imports (at the end)
+
+```typescript
+// External packages
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+
+// Internal packages
+import { Plugin } from '@inkdown/core';
+import { Modal } from '@inkdown/core/ui';
+
+// Relative imports
+import { parseConfig } from './utils';
+import { DEFAULT_CONFIG } from './constants';
+
+// Type imports
+import type { Config } from './types';
+import type { ThemeConfig } from '@inkdown/core';
+```
+
+**Use absolute imports** for cross-package imports:
+
+```typescript
+// Good ✓
+import { App } from '@inkdown/core';
+
+// Bad ✗
+import { App } from '../../../core/src/App';
+```
+
+## Styling
+
+### CSS Files
+
+**ALWAYS** use external CSS files, never inline styles:
+
+```typescript
+// Good ✓
+import './MyComponent.css';
+
+function MyComponent() {
+    return <div className="my-component">Content</div>;
+}
+```
+
+```css
+/* MyComponent.css */
+.my-component {
+    padding: var(--spacing-md);
+    background: var(--bg-primary);
+}
+```
+
+### CSS Variables
+
+**ALWAYS** use CSS variables for colors and theme values:
+
+```css
+/* Good ✓ */
+.button {
+    background: var(--color-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    padding: var(--spacing-sm);
+}
+
+/* Bad ✗ */
+.button {
+    background: #6c99bb;
+    color: #dcdcdc;
+    border: 1px solid #444;
+    padding: 8px;
+}
+```
+
+### CSS Organization
+
+```css
+/* Component base styles */
+.component {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    
+    /* Spacing */
+    padding: var(--spacing-md);
+    margin: 0;
+    
+    /* Colors */
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    
+    /* Typography */
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+}
+
+/* Component states */
+.component:hover {
+    background: var(--bg-secondary);
+}
+
+.component.active {
+    border-color: var(--color-primary);
+}
+```
+
+## Comments
+
+### When to Comment
+
+**DO** comment:
+- Complex algorithms or logic
+- Non-obvious workarounds
+- Public APIs (JSDoc)
+- Type definitions
+
+**DON'T** comment:
+- Obvious code
+- What the code does (code should be self-documenting)
+
+```typescript
+// Good ✓
+/**
+ * Parses frontmatter from markdown content
+ * @param content - The markdown content
+ * @returns Parsed frontmatter object
+ */
+function parseFrontmatter(content: string): Record<string, unknown> {
+    // Use regex to extract YAML frontmatter between --- markers
+    const match = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!match) return {};
+    
+    return parseYaml(match[1]);
+}
+
+// Bad ✗
+// This function parses frontmatter
+function parseFrontmatter(content: string) {
+    // Match the content
+    const match = content.match(/^---\n([\s\S]*?)\n---/);
+    // If no match, return empty object
+    if (!match) return {};
+    // Parse the YAML
+    return parseYaml(match[1]);
+}
+```
+
+### JSDoc
+
+Use JSDoc for public APIs:
+
+```typescript
+/**
+ * Registers a new command
+ * @param command - Command configuration
+ * @returns The registered command ID
+ * @example
+ * ```typescript
+ * app.commandManager.register({
+ *   id: 'my-command',
+ *   name: 'My Command',
+ *   callback: () => console.log('Hello'),
+ * });
+ * ```
+ */
+register(command: Command): string {
+    // Implementation
+}
+```
+
+## Code Organization
+
+### Class Structure
+
+```typescript
+export class ThemeManager {
+    // 1. Static properties
+    private static instance: ThemeManager;
+    
+    // 2. Instance properties
+    private app: App;
+    private currentTheme: string;
+    private themes: Map<string, Theme>;
+    
+    // 3. Constructor
+    constructor(app: App) {
+        this.app = app;
+        this.themes = new Map();
+    }
+    
+    // 4. Public methods
+    async setTheme(themeId: string): Promise<void> {
+        // Implementation
+    }
+    
+    getTheme(themeId: string): Theme | undefined {
+        return this.themes.get(themeId);
+    }
+    
+    // 5. Private methods
+    private loadTheme(themeId: string): Promise<Theme> {
+        // Implementation
+    }
+    
+    private applyThemeStyles(theme: Theme): void {
+        // Implementation
+    }
+}
+```
+
+### Function Length
+
+Keep functions focused and small:
+- Maximum ~50 lines per function
+- Extract complex logic into helper functions
+- One function, one purpose
+
+```typescript
+// Good ✓
+function processFile(path: string): Promise<void> {
+    const content = await readFile(path);
+    const parsed = parseContent(content);
+    const validated = validateData(parsed);
+    await saveData(validated);
+}
+
+// Bad ✗ (too long, doing too much)
+function processFile(path: string): Promise<void> {
+    // 100+ lines of mixed responsibilities
+}
+```
+
+## Cross-Platform Guidelines
+
+### Platform Abstraction
+
+**Never** access platform-specific APIs directly in core code:
+
+```typescript
+// Good ✓ - Use abstraction
+import { NativeBridge } from '@inkdown/core/native';
+
+const content = await NativeBridge.fs.readFile(path);
+
+// Bad ✗ - Direct platform access
+import { readFile } from 'fs/promises';
+const content = await readFile(path);
+```
+
+### UI Abstraction
+
+**Always** use UIBridge for UI operations:
+
+```typescript
+// Good ✓
+import { UIBridge } from '@inkdown/core/ui';
+
+UIBridge.showNotice('File saved!');
+
+// Bad ✗
+document.createElement('div');
+```
+
+## Error Handling
+
+### Result Type
+
+Use the `Result` type for operations that can fail:
+
+```typescript
+import { Result } from '@inkdown/core/errors';
+
+function readConfig(path: string): Result<Config, Error> {
+    try {
+        const content = readFile(path);
+        const config = JSON.parse(content);
+        return Result.ok(config);
+    } catch (error) {
+        return Result.err(new Error(`Failed to read config: ${error}`));
+    }
+}
+
+// Usage
+const result = readConfig('config.json');
+if (result.isOk()) {
+    console.log('Config:', result.value);
+} else {
+    console.error('Error:', result.error);
+}
+```
+
+### AppError
+
+Use `AppError` for application-specific errors:
+
+```typescript
+import { AppError } from '@inkdown/core/errors';
+
+throw new AppError(
+    'FILE_NOT_FOUND',
+    `File not found: ${path}`,
+    { path }
+);
+```
+
+## Performance
+
+### Memoization
+
+Memoize expensive computations:
+
+```typescript
+import { useMemo } from 'react';
+
+const sortedFiles = useMemo(() => {
+    return files.sort((a, b) => a.name.localeCompare(b.name));
+}, [files]);
+```
+
+### Debouncing
+
+Debounce frequent operations:
+
+```typescript
+const debouncedSearch = debounce((query: string) => {
+    performSearch(query);
+}, 300);
+```
+
+## Testing
+
+See [Testing Guide](/contributing/testing) for detailed testing practices.
+
+## Linting Rules
+
+### Key Rules
+
+- No unused variables/imports (warning)
+- No `any` type (disabled, use `unknown`)
+- No `console.log` in production code (off in dev)
+- Exhaustive dependency arrays for React hooks
+- No implicit boolean attributes
+
+### Overrides
+
+Test files have relaxed rules:
+
+```json
+{
+  "overrides": [
+    {
+      "includes": ["*.test.ts", "*.test.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+## Pre-commit Checklist
+
+Before committing, ensure:
+
+```bash
+# 1. Format and lint
+bun run check:fix
+
+# 2. Type check
+bun run typecheck
+
+# 3. Run tests
+bun run test:unit
+
+# 4. Verify build (optional)
+bun run build
+```
+
+## Summary
+
+- Use Biome for formatting and linting
+- Follow TypeScript strict mode
+- Use CSS files with CSS variables for styling
+- Write self-documenting code with JSDoc for public APIs
+- Use platform abstractions (NativeBridge, UIBridge)
+- Keep functions small and focused
+- Handle errors with Result type or AppError
+- Always run `bun run check` before committing
+
+Next: [Testing Guide](/contributing/testing)

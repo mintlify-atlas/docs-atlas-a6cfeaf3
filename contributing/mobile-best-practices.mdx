@@ -1,0 +1,664 @@
+---
+title: 'Mobile Best Practices'
+description: 'Performance optimization and best practices for React Native development in Inkdown'
+---
+
+This guide provides comprehensive best practices for building high-performance React Native applications with Expo, focusing on creating native-like experiences with optimal performance and memory efficiency.
+
+## Performance Optimization
+
+### Component Rendering
+
+Minimize unnecessary re-renders using memoization:
+
+```typescript
+import { memo, useMemo, useCallback } from 'react';
+
+// Memoize components that receive the same props frequently
+const FileItem = memo(({ file, onPress }) => {
+    return (
+        <TouchableOpacity onPress={onPress}>
+            <Text>{file.name}</Text>
+        </TouchableOpacity>
+    );
+});
+
+// Memoize expensive computations
+function FileList({ files }) {
+    const sortedFiles = useMemo(() => {
+        return files.sort((a, b) => a.name.localeCompare(b.name));
+    }, [files]);
+    
+    // Memoize callbacks to prevent child re-renders
+    const handlePress = useCallback((file) => {
+        openFile(file);
+    }, []);
+    
+    return (
+        <FlatList
+            data={sortedFiles}
+            renderItem={({ item }) => (
+                <FileItem file={item} onPress={() => handlePress(item)} />
+            )}
+        />
+    );
+}
+```
+
+**Key principles**:
+- Wrap components with `React.memo` to prevent re-renders when props don't change
+- Use `useMemo` for expensive calculations
+- Use `useCallback` for callback functions passed as props
+- Avoid creating functions or objects inside render methods
+- Split contexts by update frequency
+
+### List Performance
+
+Optimize FlatList and SectionList for smooth scrolling:
+
+```typescript
+import { FlatList } from 'react-native';
+
+function FileListOptimized({ files }) {
+    return (
+        <FlatList
+            data={files}
+            // Stable, unique key for each item
+            keyExtractor={(item) => item.id}
+            
+            // Number of items to render initially
+            initialNumToRender={10}
+            
+            // Number of items to render per batch while scrolling
+            maxToRenderPerBatch={10}
+            
+            // Number of screens to keep in memory
+            windowSize={5}
+            
+            // Remove off-screen items from native view hierarchy
+            removeClippedSubviews={true}
+            
+            // Optimize for fixed-height items
+            getItemLayout={(data, index) => ({
+                length: ITEM_HEIGHT,
+                offset: ITEM_HEIGHT * index,
+                index,
+            })}
+            
+            // Memoized render function
+            renderItem={renderFileItem}
+        />
+    );
+}
+
+const renderFileItem = ({ item }) => <FileItem file={item} />;
+```
+
+**Best practices**:
+- Always provide a stable `keyExtractor` (avoid using index)
+- Set `initialNumToRender` based on screen size (typically 10-20)
+- Enable `removeClippedSubviews` for long lists (test on Android)
+- Use `getItemLayout` for fixed-height items
+- Set appropriate `windowSize` (5-21, default 21)
+- Memoize list item components
+- Avoid inline styles or functions in `renderItem`
+
+## Memory Management
+
+### Image Optimization
+
+Images are often the largest memory consumers:
+
+```typescript
+import { Image } from 'expo-image';
+
+// Use expo-image for better memory management
+function OptimizedImage({ uri, width, height }) {
+    return (
+        <Image
+            source={{ uri }}
+            style={{ width, height }}
+            contentFit="cover"
+            transition={200}
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            cachePolicy="memory-disk"
+        />
+    );
+}
+```
+
+**Image guidelines**:
+- Use `expo-image` instead of default `Image` component
+- Resize images to display dimensions before serving
+- Use WebP format for photographs
+- Implement lazy loading for off-screen images
+- Set cache limits for user-generated content
+- Use thumbnails in lists, full resolution only when needed
+- Implement progressive loading with blurhash placeholders
+
+### Memory Leak Prevention
+
+Always clean up resources:
+
+```typescript
+import { useEffect, useRef } from 'react';
+
+function TimerComponent() {
+    const timerRef = useRef<NodeJS.Timeout>();
+    
+    useEffect(() => {
+        // Set up timer
+        timerRef.current = setInterval(() => {
+            console.log('tick');
+        }, 1000);
+        
+        // Clean up on unmount
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+        };
+    }, []);
+    
+    return <View />;
+}
+
+function EventListenerComponent() {
+    useEffect(() => {
+        const subscription = eventEmitter.on('event', handleEvent);
+        
+        // Clean up subscription
+        return () => {
+            subscription.remove();
+        };
+    }, []);
+    
+    return <View />;
+}
+```
+
+**Memory leak checklist**:
+- ✅ Clean up timers (setTimeout, setInterval)
+- ✅ Remove event listeners on unmount
+- ✅ Cancel pending async operations
+- ✅ Unsubscribe from stores/observables
+- ✅ Stop animations when components unmount
+- ✅ Clear references to unmounted screens
+- ✅ Use refs for non-rendering values
+
+## Native-Like Experience
+
+### Navigation
+
+Use React Navigation with native stack:
+
+```typescript
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+const Stack = createNativeStackNavigator();
+
+function AppNavigator() {
+    return (
+        <Stack.Navigator
+            screenOptions={{
+                headerShown: true,
+                animation: 'default',  // Native transitions
+                gestureEnabled: true,   // Swipe-back on iOS
+            }}
+        >
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Details" component={DetailsScreen} />
+        </Stack.Navigator>
+    );
+}
+```
+
+**Navigation best practices**:
+- Use native stack navigator for best performance
+- Enable gesture handling (swipe-back on iOS)
+- Match platform transition animations
+- Minimize navigation stack depth
+- Use modal presentations for secondary flows
+
+### Touch and Gestures
+
+Implement responsive touch feedback:
+
+```typescript
+import { Pressable } from 'react-native';
+import { useHaptics } from 'expo-haptics';
+
+function ResponsiveButton({ onPress, children }) {
+    const handlePress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+    };
+    
+    return (
+        <Pressable
+            onPress={handlePress}
+            hitSlop={8}  // Larger touch area
+            style={({ pressed }) => [{
+                opacity: pressed ? 0.7 : 1,
+                backgroundColor: theme.colors.primary,
+                padding: 12,
+                borderRadius: 8,
+            }]}
+        >
+            {children}
+        </Pressable>
+    );
+}
+```
+
+**Touch guidelines**:
+- Use `Pressable` over `TouchableOpacity` for better performance
+- Minimum touch target size: 44x44 points
+- Set appropriate `hitSlop` for small targets
+- Provide immediate visual feedback
+- Use haptic feedback for important actions
+- Use React Native Gesture Handler for complex gestures
+
+### Platform-Specific Patterns
+
+Respect platform conventions:
+
+```typescript
+import { Platform, StyleSheet } from 'react-native';
+
+const styles = StyleSheet.create({
+    header: {
+        ...Platform.select({
+            ios: {
+                paddingTop: 44,  // iOS status bar
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+            },
+            android: {
+                paddingTop: 0,
+                elevation: 4,  // Android shadow
+            },
+        }),
+    },
+});
+
+// Platform-specific file extensions
+// Button.ios.tsx
+// Button.android.tsx
+```
+
+## Code Architecture
+
+### Component Organization
+
+Structure components for maintainability:
+
+```typescript
+// Presentational component (UI only)
+export function FileItemView({ file, onPress }) {
+    return (
+        <TouchableOpacity onPress={onPress}>
+            <Text>{file.name}</Text>
+            <Text>{file.size}</Text>
+        </TouchableOpacity>
+    );
+}
+
+// Container component (logic)
+export function FileItemContainer({ fileId }) {
+    const app = useApp();
+    const [file, setFile] = useState(null);
+    
+    useEffect(() => {
+        loadFile();
+    }, [fileId]);
+    
+    async function loadFile() {
+        const result = await app.workspace.getFile(fileId);
+        if (result.isOk()) {
+            setFile(result.value);
+        }
+    }
+    
+    function handlePress() {
+        // Handle press logic
+    }
+    
+    if (!file) return <LoadingView />;
+    
+    return <FileItemView file={file} onPress={handlePress} />;
+}
+```
+
+**Architecture principles**:
+- Separate presentational and container components
+- Keep components focused and small (under 200 lines)
+- Use custom hooks for reusable logic
+- Implement proper error boundaries
+- Use TypeScript for type safety
+
+### State Management
+
+Choose appropriate state management:
+
+```typescript
+// Local state for component-specific data
+const [expanded, setExpanded] = useState(false);
+
+// Context for shared state
+const AppContext = createContext<App | null>(null);
+
+// Zustand for complex global state
+import create from 'zustand';
+
+const useStore = create((set) => ({
+    files: [],
+    addFile: (file) => set((state) => ({ files: [...state.files, file] })),
+    removeFile: (id) => set((state) => ({
+        files: state.files.filter(f => f.id !== id)
+    })),
+}));
+
+function FileList() {
+    // Only subscribe to files, not entire store
+    const files = useStore(state => state.files);
+    return <FlatList data={files} />;
+}
+```
+
+**State management guidelines**:
+- Keep component state local when possible
+- Use Context for shared app state
+- Use Zustand/Jotai for complex global state
+- Implement proper selectors to prevent re-renders
+- Avoid storing derived data in state
+
+### Custom Hooks
+
+Encapsulate reusable logic:
+
+```typescript
+// Custom hook for file operations
+function useFile(fileId: string) {
+    const app = useApp();
+    const [file, setFile] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    
+    useEffect(() => {
+        loadFile();
+    }, [fileId]);
+    
+    async function loadFile() {
+        setLoading(true);
+        const result = await app.workspace.getFile(fileId);
+        if (result.isOk()) {
+            setFile(result.value);
+            setError(null);
+        } else {
+            setError(result.error);
+        }
+        setLoading(false);
+    }
+    
+    const saveFile = useCallback(async (content: string) => {
+        const result = await app.workspace.saveFile(fileId, content);
+        return result.isOk();
+    }, [fileId]);
+    
+    return { file, loading, error, saveFile, reload: loadFile };
+}
+
+// Usage
+function FileEditor({ fileId }) {
+    const { file, loading, error, saveFile } = useFile(fileId);
+    
+    if (loading) return <LoadingView />;
+    if (error) return <ErrorView error={error} />;
+    
+    return <Editor content={file.content} onSave={saveFile} />;
+}
+```
+
+## Build Optimization
+
+### Bundle Size Management
+
+Minimize bundle size:
+
+```typescript
+// Use specific imports, not wildcard
+import { Text, View } from 'react-native';  // ✓ Good
+import * as RN from 'react-native';         // ✗ Bad
+
+// Lazy load heavy components
+import { lazy, Suspense } from 'react';
+
+const HeavyComponent = lazy(() => import('./HeavyComponent'));
+
+function App() {
+    return (
+        <Suspense fallback={<LoadingView />}>
+            <HeavyComponent />
+        </Suspense>
+    );
+}
+```
+
+### Asset Optimization
+
+Optimize all assets:
+
+```bash
+# Compress images before adding to project
+ImageOptim app.png
+
+# Generate multiple resolutions
+# app.png (1x)
+# app@2x.png (2x)
+# app@3x.png (3x)
+```
+
+**Asset guidelines**:
+- Compress images (ImageOptim, TinyPNG)
+- Generate @1x, @2x, @3x resolutions
+- Use SVG for icons (react-native-svg)
+- Optimize SVG files (SVGO)
+- Configure asset compression in app.json
+
+## Runtime Performance
+
+### Startup Time Optimization
+
+Minimize app launch time:
+
+```typescript
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep splash screen visible during initialization
+SplashScreen.preventAutoHideAsync();
+
+function App() {
+    const [appReady, setAppReady] = useState(false);
+    
+    useEffect(() => {
+        async function prepare() {
+            try {
+                // Load critical resources
+                await loadFonts();
+                await initializeApp();
+                
+                // Defer non-critical tasks
+                setTimeout(() => {
+                    loadAnalytics();
+                    checkForUpdates();
+                }, 0);
+            } finally {
+                setAppReady(true);
+                await SplashScreen.hideAsync();
+            }
+        }
+        
+        prepare();
+    }, []);
+    
+    if (!appReady) return null;
+    
+    return <MainApp />;
+}
+```
+
+**Startup optimization**:
+- Keep splash screen visible during initialization
+- Load only critical resources on startup
+- Defer non-critical tasks (analytics, etc.)
+- Use lazy loading for non-initial screens
+- Minimize work in app entry point
+
+### JavaScript Thread Performance
+
+Keep JS thread responsive:
+
+```typescript
+// Debounce frequent operations
+import { debounce } from 'lodash';
+
+const debouncedSearch = useMemo(
+    () => debounce((query: string) => performSearch(query), 300),
+    []
+);
+
+// Throttle scroll events
+import { throttle } from 'lodash';
+
+const throttledScroll = useMemo(
+    () => throttle((event) => handleScroll(event), 100),
+    []
+);
+```
+
+### Native Thread Utilization
+
+Move animations to native thread:
+
+```typescript
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withSpring,
+} from 'react-native-reanimated';
+
+function AnimatedButton() {
+    const scale = useSharedValue(1);
+    
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+    
+    return (
+        <Animated.View style={animatedStyle}>
+            <Pressable
+                onPressIn={() => { scale.value = withSpring(0.95); }}
+                onPressOut={() => { scale.value = withSpring(1); }}
+            >
+                <Text>Press me</Text>
+            </Pressable>
+        </Animated.View>
+    );
+}
+```
+
+**Animation guidelines**:
+- Use `react-native-reanimated` for complex animations
+- Enable `useNativeDriver: true` when possible
+- Animate transform and opacity (GPU-accelerated)
+- Avoid animating layout properties (width, height, etc.)
+- Keep animations at 60fps
+
+## Monitoring and Testing
+
+### Performance Monitoring
+
+Monitor app performance:
+
+```typescript
+import { InteractionManager } from 'react-native';
+
+// Wait for interactions to complete before running tasks
+InteractionManager.runAfterInteractions(() => {
+    // Heavy computation here
+    processData();
+});
+
+// Measure render time
+function FileList({ files }) {
+    useEffect(() => {
+        const start = performance.now();
+        
+        return () => {
+            const end = performance.now();
+            console.log('Render time:', end - start);
+        };
+    }, [files]);
+    
+    return <FlatList data={files} />;
+}
+```
+
+### Testing on Real Devices
+
+Always test on actual devices:
+
+```bash
+# Test on lower-end devices
+# - Older iPhone models (iPhone 8, etc.)
+# - Budget Android devices
+
+# Profile memory usage
+# - Xcode Instruments (iOS)
+# - Android Studio Profiler (Android)
+```
+
+**Device testing checklist**:
+- ✅ Test on low-end and high-end devices
+- ✅ Test on different screen sizes
+- ✅ Monitor memory usage
+- ✅ Check frame rate (should be 60fps)
+- ✅ Test with poor network conditions
+- ✅ Test with low battery
+
+## Summary
+
+### Performance Checklist
+
+- ✅ Memoize components and callbacks
+- ✅ Optimize FlatList configuration
+- ✅ Use expo-image for images
+- ✅ Clean up resources in useEffect
+- ✅ Use native stack navigator
+- ✅ Implement proper touch targets (44x44)
+- ✅ Minimize bundle size
+- ✅ Defer non-critical startup tasks
+- ✅ Use native driver for animations
+- ✅ Test on real devices
+
+### Common Pitfalls to Avoid
+
+- ❌ Creating functions/objects in render
+- ❌ Not providing stable keys to FlatList
+- ❌ Using large unoptimized images
+- ❌ Forgetting to clean up subscriptions
+- ❌ Animating layout properties
+- ❌ Doing heavy work on JS thread
+- ❌ Testing only on high-end devices
+
+## Resources
+
+- [React Native Performance](https://reactnative.dev/docs/performance)
+- [Expo Performance](https://docs.expo.dev/guides/performance/)
+- [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/)
+- [React Native Gesture Handler](https://docs.swmansion.com/react-native-gesture-handler/)
+
+---
+
+Building performant mobile apps requires attention to detail and continuous profiling. Follow these best practices to create native-like experiences that delight users! 🚀

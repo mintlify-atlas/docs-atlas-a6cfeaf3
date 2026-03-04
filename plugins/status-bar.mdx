@@ -1,0 +1,545 @@
+---
+title: Status Bar
+description: Add items to the status bar
+---
+
+## Overview
+
+The status bar displays information at the bottom of the editor. Plugins can add custom status bar items to show information or provide quick actions.
+
+```typescript
+const statusBar = this.addStatusBarItem();
+statusBar.setText('Word count: 0');
+statusBar.setIcon('file-text');
+```
+
+## IStatusBarItem Interface
+
+```typescript
+interface IStatusBarItem {
+  id: string;
+  setText(text: string): this;
+  setIcon(icon: string): this;
+  setTitle(title: string): this;
+  addClass(className: string): this;
+  removeClass(className: string): this;
+  toggleClass(className: string, active: boolean): this;
+  setColor(color: string): this;
+  setOnClick(callback: () => void): this;
+  show(): this;
+  hide(): this;
+  remove(): void;
+}
+```
+
+## Creating Status Bar Items
+
+### Using Plugin.addStatusBarItem()
+
+<ResponseField name="addStatusBarItem" type="() => IStatusBarItem">
+  Create a status bar item. Automatically cleaned up when plugin unloads.
+</ResponseField>
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private statusBarItem: IStatusBarItem | null = null;
+
+  async onload() {
+    this.statusBarItem = this.addStatusBarItem();
+    this.statusBarItem.setText('My Plugin');
+    this.statusBarItem.setIcon('star');
+  }
+}
+```
+
+### Using StatusBarManager
+
+<ParamField path="addItem" type="(pluginId: string, location?: 'left' | 'right') => IStatusBarItem">
+  Add a status bar item with specific positioning.
+</ParamField>
+
+```typescript
+const item = this.app.statusBarManager.addItem(
+  this.manifest.id,
+  'right' // or 'left'
+);
+```
+
+<Note>
+Using `Plugin.addStatusBarItem()` is recommended as it handles cleanup automatically.
+</Note>
+
+## Methods
+
+### setText()
+
+<ParamField path="setText" type="(text: string) => this">
+  Set the text content of the status bar item.
+</ParamField>
+
+```typescript
+statusBar.setText('100 words');
+statusBar.setText('Modified 2 min ago');
+statusBar.setText('Ready');
+```
+
+### setIcon()
+
+<ParamField path="setIcon" type="(icon: string) => this">
+  Set an icon (Lucide icon name) for the status bar item.
+</ParamField>
+
+```typescript
+statusBar.setIcon('check-circle');  // Success icon
+statusBar.setIcon('alert-circle');  // Warning icon
+statusBar.setIcon('info');          // Info icon
+statusBar.setIcon('file-text');     // Document icon
+```
+
+See [Lucide Icons](https://lucide.dev/icons/) for available icons.
+
+### setTitle()
+
+<ParamField path="setTitle" type="(title: string) => this">
+  Set the tooltip text that appears on hover.
+</ParamField>
+
+```typescript
+statusBar.setText('100');
+statusBar.setTitle('Word count: 100 words');
+```
+
+### addClass()
+
+<ParamField path="addClass" type="(className: string) => this">
+  Add a CSS class to the status bar item.
+</ParamField>
+
+```typescript
+statusBar.addClass('my-custom-style');
+statusBar.addClass('status-warning');
+```
+
+### removeClass()
+
+<ParamField path="removeClass" type="(className: string) => this">
+  Remove a CSS class from the status bar item.
+</ParamField>
+
+```typescript
+statusBar.removeClass('status-warning');
+```
+
+### toggleClass()
+
+<ParamField path="toggleClass" type="(className: string, active: boolean) => this">
+  Add or remove a CSS class based on a condition.
+</ParamField>
+
+```typescript
+statusBar.toggleClass('status-active', this.isActive);
+statusBar.toggleClass('status-error', hasError);
+```
+
+### setColor()
+
+<ParamField path="setColor" type="(color: string) => this">
+  Set the text color of the status bar item.
+</ParamField>
+
+```typescript
+statusBar.setColor('#00ff00');  // Green
+statusBar.setColor('red');      // Red
+statusBar.setColor('var(--text-success)');  // Theme color
+```
+
+### setOnClick()
+
+<ParamField path="setOnClick" type="(callback: () => void) => this">
+  Register a click handler for the status bar item.
+</ParamField>
+
+```typescript
+statusBar.setOnClick(() => {
+  this.showNotice('Status bar clicked!');
+});
+
+statusBar.setOnClick(() => {
+  this.toggleFeature();
+  this.updateStatusBar();
+});
+```
+
+### show() / hide()
+
+<ResponseField name="show" type="() => this">
+  Show the status bar item.
+</ResponseField>
+
+<ResponseField name="hide" type="() => this">
+  Hide the status bar item.
+</ResponseField>
+
+```typescript
+// Toggle visibility based on condition
+if (this.plugin.settings.showStatusBar) {
+  statusBar.show();
+} else {
+  statusBar.hide();
+}
+```
+
+### remove()
+
+<ResponseField name="remove" type="() => void">
+  Remove the status bar item permanently.
+</ResponseField>
+
+```typescript
+statusBar.remove();
+```
+
+<Warning>
+If you used `Plugin.addStatusBarItem()`, the item is automatically removed when your plugin unloads. Only use `remove()` if you need to remove it earlier.
+</Warning>
+
+## Word Count Plugin Example
+
+From the built-in Word Count plugin:
+
+```typescript
+export default class WordCountPlugin extends Plugin {
+  settings: WordCountSettings = DEFAULT_SETTINGS;
+  private statusBarItem: IStatusBarItem | null = null;
+  private updateInterval: number | null = null;
+
+  async onload() {
+    await this.loadSettings();
+    await this.createStatusBarItem();
+    this.addSettingTab(new WordCountSettingTab(this.app, this));
+    this.startUpdating();
+  }
+
+  async onunload() {
+    this.stopUpdating();
+  }
+
+  private async createStatusBarItem() {
+    this.statusBarItem = this.addStatusBarItem();
+    this.statusBarItem.addClass('word-count-status');
+    this.statusBarItem.setIcon('folder-heart');
+    this.updateWordCount();
+  }
+
+  private startUpdating() {
+    this.updateInterval = window.setInterval(() => {
+      this.updateWordCount();
+    }, 500);
+  }
+
+  private stopUpdating() {
+    if (this.updateInterval !== null) {
+      window.clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  }
+
+  private updateWordCount() {
+    if (!this.statusBarItem) return;
+
+    const activeEditorView = this.app.editorRegistry.getActive();
+    if (!activeEditorView) {
+      this.statusBarItem.setText('');
+      return;
+    }
+
+    const content = activeEditorView.state.doc.toString();
+    const wordCount = this.countWords(content);
+    const charCount = this.countCharacters(content);
+
+    const parts: string[] = [];
+    if (this.settings.showWordCount) {
+      parts.push(`${wordCount} ${wordCount === 1 ? 'word' : 'words'}`);
+    }
+    if (this.settings.showCharCount) {
+      parts.push(`${charCount} ${charCount === 1 ? 'char' : 'chars'}`);
+    }
+
+    this.statusBarItem.setText(parts.join(' • '));
+  }
+
+  private countWords(text: string): number {
+    if (!text || text.trim().length === 0) return 0;
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    return words.length;
+  }
+
+  private countCharacters(text: string): number {
+    if (!text) return 0;
+    return this.settings.countSpaces ? text.length : text.replace(/\s/g, '').length;
+  }
+}
+```
+
+## Quick Finder Plugin Example
+
+From the built-in Quick Finder plugin:
+
+```typescript
+export default class QuickFinderPlugin extends Plugin {
+  private modal: QuickFinderModal | null = null;
+
+  async onload() {
+    this.addCommand({
+      id: 'quick-finder:open',
+      name: 'Open Quick Finder',
+      hotkey: ['Mod', 'o'],
+      callback: () => {
+        this.openQuickFinder();
+      },
+    });
+
+    this.initStatusBarItem();
+  }
+
+  private initStatusBarItem() {
+    const item = this.app.statusBarManager.addItem('quick-finder', 'right');
+
+    item.setIcon('search')
+      .setTitle('Quick Finder')
+      .setOnClick(() => {
+        this.openQuickFinder();
+      });
+  }
+
+  private openQuickFinder() {
+    if (this.modal) {
+      this.modal.close();
+    }
+    this.modal = new QuickFinderModal(this.app);
+    this.modal.open();
+  }
+}
+```
+
+## Common Patterns
+
+### Display Current State
+
+```typescript
+private updateStatusBar() {
+  if (!this.statusBarItem) return;
+
+  const state = this.getCurrentState();
+  this.statusBarItem.setText(state.text);
+  this.statusBarItem.setIcon(state.icon);
+  this.statusBarItem.setColor(state.color);
+}
+```
+
+### Toggle Feature
+
+```typescript
+private statusBarItem: IStatusBarItem;
+private featureEnabled = false;
+
+async onload() {
+  this.statusBarItem = this.addStatusBarItem();
+  this.statusBarItem.setIcon('power');
+  this.statusBarItem.setOnClick(() => this.toggleFeature());
+  this.updateStatusIcon();
+}
+
+private toggleFeature() {
+  this.featureEnabled = !this.featureEnabled;
+  this.updateStatusIcon();
+}
+
+private updateStatusIcon() {
+  this.statusBarItem.toggleClass('status-active', this.featureEnabled);
+  this.statusBarItem.setTitle(
+    `Feature ${this.featureEnabled ? 'enabled' : 'disabled'}`
+  );
+}
+```
+
+### Show Progress
+
+```typescript
+private statusBarItem: IStatusBarItem;
+
+async processFiles(files: TFile[]) {
+  for (let i = 0; i < files.length; i++) {
+    await this.processFile(files[i]);
+    
+    this.statusBarItem.setText(
+      `Processing: ${i + 1}/${files.length}`
+    );
+  }
+  
+  this.statusBarItem.setText('Complete');
+  setTimeout(() => {
+    this.statusBarItem.setText('');
+  }, 2000);
+}
+```
+
+### Display Sync Status
+
+```typescript
+private statusBarItem: IStatusBarItem;
+
+async onload() {
+  this.statusBarItem = this.addStatusBarItem();
+  this.statusBarItem.setIcon('cloud');
+  this.statusBarItem.setText('Synced');
+  
+  this.registerEvent(
+    this.app.workspace.onFileModify(() => {
+      this.markAsModified();
+    })
+  );
+}
+
+private markAsModified() {
+  this.statusBarItem.setText('Modified');
+  this.statusBarItem.setColor('yellow');
+}
+
+private markAsSynced() {
+  this.statusBarItem.setText('Synced');
+  this.statusBarItem.setColor('green');
+}
+```
+
+### Conditional Display
+
+```typescript
+private statusBarItem: IStatusBarItem;
+
+async onload() {
+  this.statusBarItem = this.addStatusBarItem();
+  this.updateVisibility();
+  
+  // Update when settings change
+  this.registerEvent(
+    this.app.workspace.onActiveFileChange(() => {
+      this.updateVisibility();
+    })
+  );
+}
+
+private updateVisibility() {
+  const file = this.app.workspaceUI.getActiveFile();
+  const shouldShow = file && this.shouldShowForFile(file);
+  
+  if (shouldShow) {
+    this.statusBarItem.show();
+    this.updateContent();
+  } else {
+    this.statusBarItem.hide();
+  }
+}
+```
+
+## Best Practices
+
+### Keep Text Concise
+
+```typescript
+// ✅ Good
+statusBar.setText('150 words');
+statusBar.setText('3 errors');
+statusBar.setText('Synced');
+
+// ❌ Bad - too verbose
+statusBar.setText('Word count: 150 words');
+statusBar.setText('Number of errors: 3');
+statusBar.setText('Synchronization complete');
+```
+
+### Use Tooltips for Details
+
+```typescript
+// ✅ Good
+statusBar.setText('150 words');
+statusBar.setTitle('Word count: 150 words, 800 characters');
+
+// ❌ Bad - all info in text
+statusBar.setText('150 words, 800 chars');
+```
+
+### Clean Up Intervals
+
+```typescript
+// ✅ Good
+export default class MyPlugin extends Plugin {
+  private updateInterval: number | null = null;
+
+  async onload() {
+    this.updateInterval = window.setInterval(() => {
+      this.update();
+    }, 1000);
+  }
+
+  async onunload() {
+    if (this.updateInterval !== null) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  }
+}
+
+// ❌ Bad - interval not cleaned up
+export default class MyPlugin extends Plugin {
+  async onload() {
+    window.setInterval(() => {
+      this.update();
+    }, 1000);
+    // Never cleared!
+  }
+}
+```
+
+### Handle Missing Data
+
+```typescript
+// ✅ Good
+private updateStatusBar() {
+  if (!this.statusBarItem) return;
+
+  const editor = this.app.editorRegistry.getActive();
+  if (!editor) {
+    this.statusBarItem.setText('');
+    return;
+  }
+
+  // Update with data
+}
+
+// ❌ Bad - assumes data exists
+private updateStatusBar() {
+  const editor = this.app.editorRegistry.getActive();
+  const content = editor.getValue(); // May throw!
+}
+```
+
+### Use Appropriate Update Frequency
+
+```typescript
+// ✅ Good - reasonable interval
+this.updateInterval = window.setInterval(() => {
+  this.updateStatusBar();
+}, 500); // 500ms
+
+// ❌ Bad - too frequent
+this.updateInterval = window.setInterval(() => {
+  this.updateStatusBar();
+}, 10); // 10ms - wasteful!
+```
+
+## Related
+
+- [Plugin Class](/plugins/plugin-class) - addStatusBarItem() method
+- [App Interface](/plugins/app-interface) - StatusBarManager
+- [Notices](/plugins/notices) - Toast notifications

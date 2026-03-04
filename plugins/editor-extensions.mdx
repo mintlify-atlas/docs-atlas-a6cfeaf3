@@ -1,0 +1,527 @@
+---
+title: Editor Extensions
+description: Extend CodeMirror with custom functionality
+---
+
+## Overview
+
+Editor extensions allow you to extend CodeMirror's functionality with custom behavior, decorations, and interactions.
+
+```typescript
+import { ViewPlugin } from '@codemirror/view';
+
+const myExtension = ViewPlugin.fromClass(class {
+  constructor(view: EditorView) {
+    // Initialize
+  }
+  
+  update(update: ViewUpdate) {
+    // Handle updates
+  }
+  
+  destroy() {
+    // Clean up
+  }
+});
+
+this.registerEditorExtension(myExtension);
+```
+
+## Registration
+
+<ParamField path="registerEditorExtension" type="(extension: Extension) => void">
+  Register a CodeMirror extension.
+</ParamField>
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async onload() {
+    this.registerEditorExtension(myCustomExtension);
+  }
+}
+```
+
+<Note>
+Extensions are automatically removed when your plugin unloads.
+</Note>
+
+## CodeMirror Imports
+
+You'll need to install CodeMirror packages:
+
+```bash
+npm install @codemirror/state @codemirror/view
+```
+
+Common imports:
+
+```typescript
+import { EditorView, ViewPlugin, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
+import { Extension, RangeSetBuilder } from '@codemirror/state';
+```
+
+## View Plugins
+
+View plugins observe and react to editor changes.
+
+### Basic View Plugin
+
+```typescript
+import { ViewPlugin, EditorView } from '@codemirror/view';
+
+const myViewPlugin = ViewPlugin.fromClass(class {
+  constructor(view: EditorView) {
+    console.log('Plugin initialized');
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged) {
+      console.log('Document changed');
+    }
+    if (update.selectionSet) {
+      console.log('Selection changed');
+    }
+  }
+
+  destroy() {
+    console.log('Plugin destroyed');
+  }
+});
+
+this.registerEditorExtension(myViewPlugin);
+```
+
+### View Plugin with Decorations
+
+```typescript
+import { ViewPlugin, Decoration, DecorationSet } from '@codemirror/view';
+import { RangeSetBuilder } from '@codemirror/state';
+
+const highlightPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+    }
+
+    buildDecorations(view: EditorView): DecorationSet {
+      const builder = new RangeSetBuilder<Decoration>();
+      const text = view.state.doc.toString();
+      const regex = /TODO/g;
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        const from = match.index;
+        const to = from + match[0].length;
+        const deco = Decoration.mark({
+          class: 'cm-todo-highlight',
+        });
+        builder.add(from, to, deco);
+      }
+
+      return builder.finish();
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  }
+);
+
+this.registerEditorExtension(highlightPlugin);
+```
+
+## Decorations
+
+Decorations add visual elements to the editor.
+
+### Mark Decorations
+
+Highlight text ranges:
+
+```typescript
+// Highlight selection
+const markDeco = Decoration.mark({
+  class: 'cm-highlight',
+  attributes: { 'data-type': 'highlight' },
+});
+builder.add(from, to, markDeco);
+```
+
+### Widget Decorations
+
+Insert custom DOM elements:
+
+```typescript
+class LineNumberWidget extends WidgetType {
+  constructor(private lineNumber: number) {
+    super();
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-line-number';
+    span.textContent = String(this.lineNumber);
+    return span;
+  }
+}
+
+const widgetDeco = Decoration.widget({
+  widget: new LineNumberWidget(10),
+  side: -1, // Before the position
+});
+builder.add(pos, pos, widgetDeco);
+```
+
+### Replace Decorations
+
+Replace text with a widget:
+
+```typescript
+class EmojiWidget extends WidgetType {
+  constructor(private emoji: string) {
+    super();
+  }
+
+  toDOM() {
+    const span = document.createElement('span');
+    span.textContent = this.emoji;
+    span.className = 'cm-emoji';
+    return span;
+  }
+}
+
+const replaceDeco = Decoration.replace({
+  widget: new EmojiWidget('😄'),
+});
+builder.add(from, to, replaceDeco);
+```
+
+### Line Decorations
+
+Style entire lines:
+
+```typescript
+const lineDeco = Decoration.line({
+  class: 'cm-active-line',
+});
+builder.add(lineStart, lineStart, lineDeco);
+```
+
+## Emoji Plugin Example
+
+From the built-in Emoji plugin:
+
+```typescript
+import { Plugin } from '@inkdown/api';
+import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
+import { RangeSetBuilder } from '@codemirror/state';
+import { GITHUB_EMOJI_MAP } from './emojiMap';
+
+const EMOJI_REGEX = /:([a-z0-9_+-]+):/gi;
+
+class EmojiWidget extends WidgetType {
+  constructor(private readonly emoji: string) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span');
+    span.textContent = this.emoji;
+    span.className = 'cm-emoji-widget';
+    span.style.cursor = 'default';
+    return span;
+  }
+
+  eq(other: EmojiWidget): boolean {
+    return other.emoji === this.emoji;
+  }
+}
+
+function buildDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const visibleRanges = view.visibleRanges;
+  const selection = view.state.selection;
+
+  for (const { from, to } of visibleRanges) {
+    const text = view.state.sliceDoc(from, to);
+    EMOJI_REGEX.lastIndex = 0;
+
+    let match;
+    while ((match = EMOJI_REGEX.exec(text)) !== null) {
+      const emojiCode = match[1];
+      const emoji = GITHUB_EMOJI_MAP[emojiCode.toLowerCase()];
+
+      if (emoji) {
+        const start = from + match.index;
+        const end = start + match[0].length;
+
+        // Don't decorate if cursor is inside
+        let overlaps = false;
+        for (const range of selection.ranges) {
+          if (range.from <= end && range.to >= start) {
+            overlaps = true;
+            break;
+          }
+        }
+
+        if (!overlaps) {
+          const deco = Decoration.replace({
+            widget: new EmojiWidget(emoji),
+          });
+          builder.add(start, end, deco);
+        }
+      }
+    }
+  }
+
+  return builder.finish();
+}
+
+export default class EmojiPlugin extends Plugin {
+  async onload() {
+    // Markdown post processor
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      el.replaceText(EMOJI_REGEX, (match, code) => {
+        const emoji = GITHUB_EMOJI_MAP[code.toLowerCase()];
+        return emoji || match;
+      });
+    });
+
+    // Editor extension
+    const emojiExtension = ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+
+        constructor(view: EditorView) {
+          this.decorations = buildDecorations(view);
+        }
+
+        update(update: ViewUpdate) {
+          if (update.docChanged || update.viewportChanged || update.selectionSet) {
+            this.decorations = buildDecorations(update.view);
+          }
+        }
+      },
+      {
+        decorations: (v) => v.decorations,
+      }
+    );
+
+    this.registerEditorExtension(emojiExtension);
+  }
+}
+```
+
+## Common Patterns
+
+### Highlight Current Line
+
+```typescript
+const currentLineHighlight = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.selectionSet) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+    }
+
+    buildDecorations(view: EditorView) {
+      const builder = new RangeSetBuilder<Decoration>();
+      const line = view.state.doc.lineAt(view.state.selection.main.head);
+      const deco = Decoration.line({ class: 'cm-active-line' });
+      builder.add(line.from, line.from, deco);
+      return builder.finish();
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+```
+
+### Show Line Numbers
+
+```typescript
+class LineNumberWidget extends WidgetType {
+  constructor(private num: number) {
+    super();
+  }
+
+  toDOM() {
+    const el = document.createElement('span');
+    el.className = 'cm-line-number';
+    el.textContent = String(this.num);
+    return el;
+  }
+}
+
+const lineNumbers = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+    }
+
+    buildDecorations(view: EditorView) {
+      const builder = new RangeSetBuilder<Decoration>();
+      for (const { from, to } of view.visibleRanges) {
+        const firstLine = view.state.doc.lineAt(from).number;
+        const lastLine = view.state.doc.lineAt(to).number;
+
+        for (let i = firstLine; i <= lastLine; i++) {
+          const line = view.state.doc.line(i);
+          const deco = Decoration.widget({
+            widget: new LineNumberWidget(i),
+            side: -1,
+          });
+          builder.add(line.from, line.from, deco);
+        }
+      }
+      return builder.finish();
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+```
+
+### Trailing Whitespace Indicator
+
+```typescript
+const trailingWhitespace = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = this.buildDecorations(update.view);
+      }
+    }
+
+    buildDecorations(view: EditorView) {
+      const builder = new RangeSetBuilder<Decoration>();
+      const doc = view.state.doc;
+
+      for (const { from, to } of view.visibleRanges) {
+        for (let pos = from; pos <= to; ) {
+          const line = doc.lineAt(pos);
+          const text = line.text;
+          const match = text.match(/(\s+)$/);
+
+          if (match) {
+            const start = line.from + text.length - match[1].length;
+            const end = line.from + text.length;
+            const deco = Decoration.mark({
+              class: 'cm-trailing-whitespace',
+            });
+            builder.add(start, end, deco);
+          }
+
+          pos = line.to + 1;
+        }
+      }
+
+      return builder.finish();
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+```
+
+## Best Practices
+
+### Only Process Visible Content
+
+```typescript
+// ✅ Good - use visibleRanges
+buildDecorations(view: EditorView) {
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const { from, to } of view.visibleRanges) {
+    const text = view.state.sliceDoc(from, to);
+    // Process only visible text
+  }
+  return builder.finish();
+}
+
+// ❌ Bad - process entire document
+buildDecorations(view: EditorView) {
+  const text = view.state.doc.toString(); // Entire document!
+  // ...
+}
+```
+
+### Avoid Expensive Operations
+
+```typescript
+// ✅ Good - efficient updates
+update(update: ViewUpdate) {
+  if (update.docChanged || update.viewportChanged) {
+    this.decorations = this.buildDecorations(update.view);
+  }
+}
+
+// ❌ Bad - rebuild on every update
+update(update: ViewUpdate) {
+  this.decorations = this.buildDecorations(update.view);
+}
+```
+
+### Respect Cursor Position
+
+```typescript
+// ✅ Good - don't decorate at cursor
+for (const range of selection.ranges) {
+  if (range.from <= end && range.to >= start) {
+    continue; // Skip this decoration
+  }
+}
+
+// ❌ Bad - decorate everywhere
+// User can't edit decorated text!
+```
+
+### Clean Up Resources
+
+```typescript
+class MyPlugin {
+  private resources: Resource[] = [];
+
+  constructor(view: EditorView) {
+    this.resources.push(new Resource());
+  }
+
+  destroy() {
+    for (const resource of this.resources) {
+      resource.cleanup();
+    }
+    this.resources = [];
+  }
+}
+```
+
+## Related
+
+- [Markdown Processing](/plugins/markdown-processing) - Content processing
+- [Editor](/plugins/editor) - Editor API
+- [Plugin Class](/plugins/plugin-class) - registerEditorExtension()

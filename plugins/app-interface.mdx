@@ -1,0 +1,602 @@
+---
+title: App Interface
+description: Access core managers and services through the App interface
+---
+
+## Overview
+
+The `App` interface is the main entry point for accessing Inkdown's core functionality. It provides access to all managers and services.
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async onload() {
+    // Access via this.app
+    const files = await this.app.workspace.getAllFiles();
+    const editor = this.app.editorRegistry.getActive();
+  }
+}
+```
+
+## Interface Definition
+
+```typescript
+interface App {
+  // Plugin management
+  pluginManager: PluginManager;
+  plugins: Plugins;
+
+  // Theme and configuration
+  themeManager: ThemeManager;
+  configManager: ConfigManager;
+
+  // Commands and UI
+  commandManager: CommandManager;
+  tabManager: TabManager;
+  statusBarManager: StatusBarManager;
+  dialog: DialogManager;
+
+  // File system
+  fileSystemManager: FileSystemManager;
+  workspace: Workspace;
+  workspaceUI: WorkspaceUI;
+  fileManager: FileManager;
+
+  // Content and metadata
+  metadataCache: MetadataCache;
+  markdownProcessor: MarkdownProcessorRegistry;
+  editorStateManager: EditorStateManager;
+  editorRegistry: EditorRegistry;
+
+  // Features
+  bookmarkManager: BookmarkManager;
+  tagManager: TagManager;
+  searchService: SearchService;
+  syncManager: SyncManager;
+  fontManager: FontManager;
+
+  // Utilities
+  openExternalLink(url: string): Promise<void>;
+}
+```
+
+## Core Managers
+
+### workspace
+
+<ResponseField name="workspace" type="Workspace">
+  File operations and workspace events.
+</ResponseField>
+
+```typescript
+// Get files
+const allFiles = await this.app.workspace.getAllFiles();
+const mdFiles = await this.app.workspace.getMarkdownFiles();
+
+// File operations
+const file = this.app.workspace.getAbstractFileByPath('note.md');
+const content = await this.app.workspace.read(file);
+await this.app.workspace.modify(file, 'new content');
+
+// Events
+this.registerEvent(
+  this.app.workspace.onFileCreate((file) => {
+    console.log('Created:', file.path);
+  })
+);
+```
+
+See [Workspace](/plugins/workspace) for details.
+
+### workspaceUI
+
+<ResponseField name="workspaceUI" type="WorkspaceUI">
+  UI state and file opening.
+</ResponseField>
+
+```typescript
+// Get active file
+const activeFile = this.app.workspaceUI.getActiveFile();
+
+// Open file
+await this.app.workspaceUI.openFile(file, true); // true = new tab
+
+// Events
+this.registerEvent(
+  this.app.workspaceUI.onActiveFileChange((file) => {
+    console.log('Active file:', file?.path);
+  })
+);
+```
+
+### fileManager
+
+<ResponseField name="fileManager" type="FileManager">
+  High-level file operations.
+</ResponseField>
+
+```typescript
+// Create file
+const newFile = await this.app.fileManager.createFile(
+  'notes/new-note.md',
+  '# My Note'
+);
+
+// Read and modify
+const content = await this.app.fileManager.read(file);
+await this.app.fileManager.modify(file, 'updated content');
+
+// Rename and delete
+await this.app.fileManager.renameFile(file, 'new-name.md');
+await this.app.fileManager.trashFile(file);
+
+// Process frontmatter
+await this.app.fileManager.processFrontMatter(file, (fm) => {
+  fm.title = 'New Title';
+  fm.tags = ['tag1', 'tag2'];
+});
+
+// Generate markdown links
+const link = this.app.fileManager.generateMarkdownLink(
+  file,
+  'source.md',
+  '#heading',
+  'Link Text'
+);
+```
+
+### fileSystemManager
+
+<ResponseField name="fileSystemManager" type="FileSystemManager">
+  Low-level file system access.
+</ResponseField>
+
+```typescript
+// Read/write files
+const content = await this.app.fileSystemManager.readFile('/path/to/file.md');
+await this.app.fileSystemManager.writeFile('/path/to/file.md', content);
+
+// Directory operations
+const files = await this.app.fileSystemManager.readDirectory('/path', true);
+await this.app.fileSystemManager.createDirectory('/new/folder');
+
+// File operations
+await this.app.fileSystemManager.rename('old.md', 'new.md');
+await this.app.fileSystemManager.delete('/path/to/file.md');
+const exists = await this.app.fileSystemManager.exists('/path/to/file.md');
+
+// Workspace path
+const workspacePath = this.app.fileSystemManager.getWorkspacePath();
+```
+
+## Editor Managers
+
+### editorRegistry
+
+<ResponseField name="editorRegistry" type="EditorRegistry">
+  Access to editor instances.
+</ResponseField>
+
+```typescript
+// Get active editor
+const editor = this.app.editorRegistry.getActive();
+if (editor) {
+  const content = editor.state.doc.toString();
+  console.log('Current content:', content);
+}
+
+// Get specific editor
+const specificEditor = this.app.editorRegistry.get('editor-id');
+```
+
+### editorStateManager
+
+<ResponseField name="editorStateManager" type="EditorStateManager">
+  Editor content and state management.
+</ResponseField>
+
+```typescript
+// Get content
+const content = await this.app.editorStateManager.getContent('/path/to/file.md');
+
+// Update content
+this.app.editorStateManager.updateContent('/path/to/file.md', 'new content');
+
+// Save file
+await this.app.editorStateManager.saveFile('/path/to/file.md');
+
+// Check if dirty
+const isDirty = this.app.editorStateManager.isDirty('/path/to/file.md');
+```
+
+## Command Manager
+
+### commandManager
+
+<ResponseField name="commandManager" type="CommandManager">
+  Command registration and execution.
+</ResponseField>
+
+```typescript
+// Register command (prefer Plugin.addCommand)
+this.app.commandManager.registerCommand({
+  id: 'my-command',
+  name: 'My Command',
+  callback: () => console.log('Executed'),
+}, 'plugin', this.manifest.id);
+
+// Execute command
+this.app.commandManager.executeCommand('my-command');
+
+// Get commands
+const allCommands = this.app.commandManager.getCommands();
+const specific = this.app.commandManager.getCommand('my-command');
+
+// Unregister
+this.app.commandManager.unregisterCommand('my-command');
+```
+
+See [Commands](/plugins/commands) for details.
+
+## Metadata and Content
+
+### metadataCache
+
+<ResponseField name="metadataCache" type="MetadataCache">
+  Access parsed file metadata.
+</ResponseField>
+
+```typescript
+// Get cached metadata
+const cache = this.app.metadataCache.getCache('/path/to/file.md');
+if (cache) {
+  console.log('Frontmatter:', cache.frontmatter);
+  console.log('Links:', cache.links);
+  console.log('Tags:', cache.tags);
+  console.log('Headings:', cache.headings);
+}
+
+// Listen for changes
+this.registerEvent(
+  this.app.metadataCache.onChanged((file, data, cache) => {
+    console.log('Metadata changed:', file.path);
+  })
+);
+```
+
+See [Metadata Cache](/plugins/metadata-cache) for details.
+
+### markdownProcessor
+
+<ResponseField name="markdownProcessor" type="MarkdownProcessorRegistry">
+  Register markdown processors.
+</ResponseField>
+
+```typescript
+// Register code block processor
+this.app.markdownProcessor.registerCodeBlockProcessor(
+  'mermaid',
+  (source, el, ctx) => {
+    el.setText('Diagram: ' + source);
+  }
+);
+
+// Register post processor
+this.app.markdownProcessor.registerPostProcessor((el, ctx) => {
+  const links = el.findAll('a');
+  links.forEach(link => link.addClass('external-link'));
+});
+```
+
+See [Markdown Processing](/plugins/markdown-processing) for details.
+
+## UI Managers
+
+### statusBarManager
+
+<ResponseField name="statusBarManager" type="StatusBarManager">
+  Manage status bar items.
+</ResponseField>
+
+```typescript
+// Add item (prefer Plugin.addStatusBarItem)
+const item = this.app.statusBarManager.addItem(this.manifest.id, 'right');
+item.setText('Status');
+item.setIcon('info');
+
+// Get all items
+const items = this.app.statusBarManager.getItems();
+
+// Remove item
+this.app.statusBarManager.removeItem(item.id);
+```
+
+See [Status Bar](/plugins/status-bar) for details.
+
+### tabManager
+
+<ResponseField name="tabManager" type="TabManager">
+  Manage editor tabs.
+</ResponseField>
+
+```typescript
+// Open tab
+await this.app.tabManager.openTab('/path/to/file.md', {
+  openInNewTab: true,
+});
+
+// Get tabs
+const activeTab = this.app.tabManager.getActiveTab();
+const allTabs = this.app.tabManager.getAllTabs();
+
+// Switch/close tabs
+this.app.tabManager.switchTab('tab-id');
+await this.app.tabManager.closeTab('tab-id');
+```
+
+### dialog
+
+<ResponseField name="dialog" type="DialogManager">
+  Native file/folder dialogs.
+</ResponseField>
+
+```typescript
+// Open file dialog
+const files = await this.app.dialog.showOpenDialog({
+  title: 'Select Files',
+  multiple: true,
+  filters: [
+    { name: 'Markdown', extensions: ['md', 'markdown'] },
+    { name: 'All Files', extensions: ['*'] },
+  ],
+});
+
+// Save dialog
+const savePath = await this.app.dialog.showSaveDialog({
+  title: 'Save As',
+  defaultPath: 'untitled.md',
+});
+
+// Folder dialog
+const folder = await this.app.dialog.showFolderDialog({
+  title: 'Select Folder',
+});
+```
+
+## Feature Managers
+
+### searchService
+
+<ResponseField name="searchService" type="SearchService">
+  Search files by name and content.
+</ResponseField>
+
+```typescript
+// Search
+const results = await this.app.searchService.search({
+  query: 'search term',
+  searchContent: true,
+  limit: 50,
+});
+
+for (const result of results) {
+  console.log(result.file.path);
+  console.log('Score:', result.score);
+  console.log('Match:', result.matchType);
+  console.log('Context:', result.matchContext);
+}
+
+// Build index
+if (!this.app.searchService.isIndexBuilt()) {
+  await this.app.searchService.buildIndex();
+}
+```
+
+### bookmarkManager
+
+<ResponseField name="bookmarkManager" type="BookmarkManager">
+  Manage bookmarks and bookmark groups.
+</ResponseField>
+
+```typescript
+// Get bookmarks
+const groups = this.app.bookmarkManager.getGroups();
+const group = this.app.bookmarkManager.getGroup('group-id');
+
+// Create group
+const newGroup = await this.app.bookmarkManager.createGroup(
+  'My Group',
+  'Description',
+  '#ff0000'
+);
+
+// Add bookmark
+const bookmark = await this.app.bookmarkManager.addBookmark(
+  group.id,
+  '/path/to/file.md',
+  'My Bookmark',
+  'Some notes'
+);
+
+// Check if bookmarked
+const isBookmarked = this.app.bookmarkManager.isBookmarked('/path/to/file.md');
+
+// Events
+this.registerEvent(
+  this.app.bookmarkManager.on('change', () => {
+    console.log('Bookmarks changed');
+  })
+);
+```
+
+### tagManager
+
+<ResponseField name="tagManager" type="TagManager">
+  Manage tags and note tagging.
+</ResponseField>
+
+```typescript
+// Get tags
+const tags = this.app.tagManager.getTags();
+const tag = this.app.tagManager.getTag('tag-id');
+
+// Create tag
+const newTag = await this.app.tagManager.createTag('important', '#ff0000');
+
+// Tag notes
+await this.app.tagManager.addTagToNote('/path/to/file.md', tag.id);
+await this.app.tagManager.removeTagFromNote('/path/to/file.md', tag.id);
+
+// Query
+const noteTags = this.app.tagManager.getTagsForNote('/path/to/file.md');
+const taggedNotes = this.app.tagManager.getNotesForTag(tag.id);
+
+// Events
+this.registerEvent(
+  this.app.tagManager.on('change', () => {
+    console.log('Tags changed');
+  })
+);
+```
+
+## Configuration Managers
+
+### pluginManager
+
+<ResponseField name="pluginManager" type="PluginManager">
+  Manage plugins and plugin settings.
+</ResponseField>
+
+```typescript
+// Get settings
+const settings = this.app.pluginManager.getPluginSettings<MySettings>(
+  this.manifest.id
+);
+
+// Save settings
+await this.app.pluginManager.savePluginSettings(
+  this.manifest.id,
+  settings
+);
+
+// Enable/disable plugins
+await this.app.pluginManager.enablePlugin('plugin-id');
+await this.app.pluginManager.disablePlugin('plugin-id');
+
+// Check if built-in
+const isBuiltIn = this.app.pluginManager.isBuiltIn('plugin-id');
+```
+
+### plugins
+
+<ResponseField name="plugins" type="Plugins">
+  Unified plugin access (recommended over pluginManager).
+</ResponseField>
+
+```typescript
+// Get plugin
+const plugin = this.app.plugins.getPlugin('plugin-id');
+
+// Check status
+const isEnabled = this.app.plugins.isEnabled('plugin-id');
+const isBuiltIn = this.app.plugins.isBuiltIn('plugin-id');
+
+// Control plugins
+await this.app.plugins.enable('plugin-id');
+await this.app.plugins.disable('plugin-id');
+const newState = await this.app.plugins.toggle('plugin-id');
+
+// Get all plugins
+const allPlugins = this.app.plugins.getAll();
+const enabledPlugins = this.app.plugins.getEnabled();
+
+// Settings
+const settings = this.app.plugins.getSettings<MySettings>('plugin-id');
+await this.app.plugins.saveSettings('plugin-id', settings);
+
+// Listen for changes
+const unsubscribe = this.app.plugins.onPluginChange(
+  (pluginId, changeType) => {
+    console.log(`${pluginId} ${changeType}`);
+  }
+);
+```
+
+### themeManager
+
+<ResponseField name="themeManager" type="ThemeManager">
+  Theme and color scheme management.
+</ResponseField>
+
+```typescript
+// Get color scheme
+const scheme = this.app.themeManager.getColorScheme(); // 'light' | 'dark' | 'system'
+
+// Set color scheme
+await this.app.themeManager.setColorScheme('dark');
+
+// Get current theme
+const theme = this.app.themeManager.getCurrentTheme();
+```
+
+### configManager
+
+<ResponseField name="configManager" type="ConfigManager">
+  Load and save app configuration.
+</ResponseField>
+
+```typescript
+// Load config
+const config = await this.app.configManager.loadConfig<MyConfig>('my-config');
+
+// Save config
+await this.app.configManager.saveConfig('my-config', {
+  setting1: 'value1',
+  setting2: true,
+});
+```
+
+### syncManager
+
+<ResponseField name="syncManager" type="SyncManager">
+  Sync functionality.
+</ResponseField>
+
+```typescript
+// Check sync status
+const isEnabled = this.app.syncManager.isEnabled();
+const isLoggedIn = this.app.syncManager.isLoggedIn();
+
+// Trigger sync
+await this.app.syncManager.syncNow();
+```
+
+## Utility Managers
+
+### fontManager
+
+<ResponseField name="fontManager" type="FontManager">
+  System font access.
+</ResponseField>
+
+```typescript
+// Get available fonts
+const fonts = this.app.fontManager.getSystemFonts();
+console.log('Available fonts:', fonts);
+```
+
+### openExternalLink()
+
+<ParamField path="openExternalLink" type="(url: string) => Promise<void>">
+  Open a URL in the system browser.
+</ParamField>
+
+```typescript
+await this.app.openExternalLink('https://inkdown.app');
+```
+
+## Related
+
+- [Plugin Class](/plugins/plugin-class) - Base plugin functionality
+- [Workspace](/plugins/workspace) - File operations
+- [Editor](/plugins/editor) - Editor manipulation
+- [Events](/plugins/events) - Event system

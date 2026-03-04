@@ -1,0 +1,248 @@
+---
+title: Plugin Manifest
+description: Configuration file structure for Inkdown plugins
+---
+
+## Overview
+
+Every Inkdown plugin requires a `manifest.json` file that describes the plugin's metadata and requirements.
+
+## Manifest Structure
+
+```typescript
+interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  minAppVersion: string;
+  description?: string;
+  author?: string;
+  authorUrl?: string;
+  isDesktopOnly?: boolean;
+}
+```
+
+## Required Fields
+
+### id
+
+<ParamField path="id" type="string" required>
+  Unique identifier for your plugin. Must be kebab-case (lowercase with hyphens).
+</ParamField>
+
+```json
+"id": "my-awesome-plugin"
+```
+
+<Warning>
+The ID must be unique across all Inkdown plugins. Choose a descriptive, namespaced ID to avoid conflicts.
+</Warning>
+
+### name
+
+<ParamField path="name" type="string" required>
+  Human-readable name displayed in the UI.
+</ParamField>
+
+```json
+"name": "My Awesome Plugin"
+```
+
+### version
+
+<ParamField path="version" type="string" required>
+  Plugin version following semantic versioning (semver).
+</ParamField>
+
+```json
+"version": "1.2.3"
+```
+
+Version format: `MAJOR.MINOR.PATCH`
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backward compatible)
+- **PATCH**: Bug fixes
+
+### minAppVersion
+
+<ParamField path="minAppVersion" type="string" required>
+  Minimum Inkdown version required to run this plugin.
+</ParamField>
+
+```json
+"minAppVersion": "1.0.0"
+```
+
+<Note>
+Set this to the earliest Inkdown version you've tested with. Users on older versions won't be able to install your plugin.
+</Note>
+
+## Optional Fields
+
+### description
+
+<ParamField path="description" type="string">
+  Short description of what your plugin does.
+</ParamField>
+
+```json
+"description": "Adds word count to the status bar"
+```
+
+### author
+
+<ParamField path="author" type="string">
+  Plugin author's name.
+</ParamField>
+
+```json
+"author": "Jane Doe"
+```
+
+### authorUrl
+
+<ParamField path="authorUrl" type="string">
+  URL to author's website or GitHub profile.
+</ParamField>
+
+```json
+"authorUrl": "https://github.com/janedoe"
+```
+
+### isDesktopOnly
+
+<ParamField path="isDesktopOnly" type="boolean" default={false}>
+  Whether the plugin only works on desktop (not mobile).
+</ParamField>
+
+```json
+"isDesktopOnly": true
+```
+
+<Info>
+Set to `true` if your plugin uses Node.js APIs or desktop-specific features.
+</Info>
+
+## Complete Example
+
+```json manifest.json
+{
+  "id": "word-count",
+  "name": "Word Count",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Display word and character count in the status bar",
+  "author": "Inkdown Team",
+  "authorUrl": "https://inkdown.app",
+  "isDesktopOnly": false
+}
+```
+
+## Accessing Manifest in Code
+
+The manifest is available in your plugin instance:
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async onload() {
+    console.log(`Plugin ID: ${this.manifest.id}`);
+    console.log(`Plugin Name: ${this.manifest.name}`);
+    console.log(`Version: ${this.manifest.version}`);
+    console.log(`Author: ${this.manifest.author}`);
+  }
+}
+```
+
+## Validation
+
+Inkdown validates your manifest when loading the plugin:
+
+- **Missing required fields**: Plugin won't load
+- **Invalid version format**: Plugin won't load
+- **Incompatible minAppVersion**: Plugin won't be available
+
+## Best Practices
+
+### Version Management
+
+1. **Start with 0.1.0** for initial development
+2. **Use 1.0.0** for first stable release
+3. **Increment PATCH** for bug fixes
+4. **Increment MINOR** for new features
+5. **Increment MAJOR** for breaking changes
+
+### ID Naming
+
+- Use lowercase letters, numbers, and hyphens
+- Make it descriptive: `markdown-table-formatter` not `mtf`
+- Avoid generic names like `helper` or `utils`
+- Consider namespacing: `company-product-feature`
+
+### Description Guidelines
+
+- Keep it under 100 characters
+- Be specific about what the plugin does
+- Avoid marketing language
+- Focus on functionality
+
+**Good**:
+```json
+"description": "Export notes to PDF with custom templates"
+```
+
+**Bad**:
+```json
+"description": "The best and most amazing plugin ever!"
+```
+
+### minAppVersion Strategy
+
+- Test with the version you specify
+- Don't artificially inflate the version requirement
+- Update when using new API features
+- Document version-specific features
+
+## Common Mistakes
+
+### Invalid ID
+
+```json
+// ❌ Don't use camelCase or spaces
+"id": "myAwesomePlugin"
+"id": "my awesome plugin"
+
+// ✅ Use kebab-case
+"id": "my-awesome-plugin"
+```
+
+### Version Format
+
+```json
+// ❌ Invalid formats
+"version": "1.0"
+"version": "v1.0.0"
+"version": "1.0.0-beta"
+
+// ✅ Valid semver
+"version": "1.0.0"
+```
+
+### Missing Manifest
+
+```
+plugin-folder/
+  src/
+    index.ts
+  dist/
+    main.js
+  package.json
+  ❌ manifest.json is missing!
+```
+
+Always ensure `manifest.json` is in your plugin's root directory.
+
+## Related
+
+- [Quickstart](/plugins/quickstart) - Create your first plugin
+- [Community Plugins](/plugins/community-plugins) - Publishing guidelines
+- [Plugin Class](/plugins/plugin-class) - Plugin implementation

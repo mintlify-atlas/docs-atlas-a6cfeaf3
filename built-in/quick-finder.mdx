@@ -1,0 +1,485 @@
+---
+title: Quick Finder Plugin
+description: Fast file search and creation with fuzzy matching
+---
+
+The Quick Finder plugin provides a powerful search interface for quickly finding and opening notes, or creating new ones.
+
+## Overview
+
+Quick Finder is a command palette-style modal that lets you:
+
+- **Search files** by name with fuzzy matching
+- **Search content** across all notes
+- **Open files** in current or new tab
+- **Create new notes** with a keyboard shortcut
+- **View recent files** when search is empty
+- **Toggle todos** directly from search results
+
+**Default shortcut**: `Ctrl+O` (Windows/Linux) or `Cmd+O` (macOS)
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderPlugin.ts:4-12`
+
+## Features
+
+### Fuzzy File Search
+
+Type any part of a filename to find it:
+
+- `proj` matches "**proj**ect-notes.md"
+- `mtg` matches "**m**ee**t**in**g**-notes.md"
+- `2024 report` matches "**2024**-annual-**report**.md"
+
+The search is case-insensitive and matches characters in order.
+
+### Content Search
+
+Search inside note content:
+
+```typescript
+const results = await app.searchService.search({
+    query: query,
+    searchContent: true,
+    limit: 50
+});
+```
+
+Results show:
+- **File name** at the top
+- **Matching line** with context below
+- **Highlighted todos** if the match is a todo item
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:44-66`
+
+### Recent Files
+
+When search is empty, Quick Finder shows recently opened files:
+
+```typescript
+if (!query) {
+    const allFiles = await this.app.workspace.getMarkdownFiles();
+    const recentFiles = this.app.workspace.getRecentFiles();
+    
+    // Return files sorted by recency
+    const recentFileObjs = allFiles
+        .filter(f => recentFiles.includes(f.path))
+        .sort((a, b) => recentFiles.indexOf(a.path) - recentFiles.indexOf(b.path));
+    
+    return recentFileObjs;
+}
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:45-55`
+
+### Quick Note Creation
+
+Press `Shift+Enter` to create a new note from your search query:
+
+```typescript
+this.scope.register(['Shift'], 'Enter', (e) => {
+    e.preventDefault();
+    this.createNote(this.inputValue);
+    return false;
+});
+```
+
+**Behavior**:
+- Query becomes the note name
+- Note is created in default location
+- Supports folder paths: `folder/subfolder/note` creates nested structure
+- Opens immediately in a new tab
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:232-237`
+
+### Todo Toggle
+
+Press `Alt+Enter` on a todo item to toggle its completion:
+
+```typescript
+if (isAlt && 'matchContext' in item) {
+    const res = item as SearchResult;
+    if (res.matchContext && res.matchContext.match(/- \[( |x)\]/)) {
+        await this.toggleTodo(res);
+        return;
+    }
+}
+```
+
+This allows you to complete tasks without opening the file.
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:151-156`
+
+## Installation
+
+The Quick Finder plugin is built-in and enabled by default.
+
+To toggle it:
+1. Open Settings → Plugins
+2. Find "Quick Finder"
+3. Toggle the enable switch
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+O` / `Cmd+O` | Open Quick Finder |
+| `Enter` | Open selected file |
+| `Ctrl+Enter` / `Cmd+Enter` | Open in new tab |
+| `Alt+Enter` | Toggle todo (if result is a todo) |
+| `Shift+Enter` | Create new note from query |
+| `Esc` | Close Quick Finder |
+| `↑` / `↓` | Navigate results |
+| `Tab` | Navigate results (down) |
+| `Shift+Tab` | Navigate results (up) |
+
+**Source**: Keyboard hints in modal footer (`QuickFinderModal.ts:204-213`)
+
+## User Interface
+
+### Modal Structure
+
+```
+╭─────────────────────────────────────╮
+│ 🔍 Search notes...              │
+├─────────────────────────────────────┤
+│ 📄 project-notes.md             │
+│ 📄 meeting-notes.md             │
+│ ☑ - [x] Complete task          │
+│    tasks.md                      │
+│ ☐ - [ ] Incomplete task        │
+│    todos.md                      │
+├─────────────────────────────────────┤
+│ ⏎ to open • ⌘⏎ new tab •    │
+│ ⌥⏎ toggle todo • ⇧⏎ create     │
+╰─────────────────────────────────────╯
+```
+
+### Result Display
+
+#### File Results
+
+```html
+<div class="quick-finder-item">
+    <div class="quick-finder-item-title">project-notes</div>
+</div>
+```
+
+#### Content Match Results
+
+```html
+<div class="quick-finder-item">
+    <div class="quick-finder-item-meta">project-notes</div>
+    <div class="quick-finder-item-context">
+        This is the matching content...
+    </div>
+</div>
+```
+
+#### Todo Results
+
+```html
+<div class="quick-finder-item">
+    <div class="quick-finder-item-meta">tasks</div>
+    <div class="quick-finder-item-context">
+        <span class="quick-finder-todo-check is-checked">☑</span>
+        <span>Complete this task</span>
+    </div>
+</div>
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:69-136`
+
+## Implementation Details
+
+### SuggestModal Extension
+
+Quick Finder extends the `SuggestModal` class:
+
+```typescript
+export class QuickFinderModal extends SuggestModal<TFile | SearchResult> {
+    private workspacePath = '';
+    
+    async getSuggestions(query: string): Promise<(TFile | SearchResult)[]> {
+        // Search logic
+    }
+    
+    renderSuggestion(item: TFile | SearchResult, el: HTMLElement) {
+        // Render logic
+    }
+    
+    async onChooseSuggestion(item: TFile | SearchResult, evt: MouseEvent | KeyboardEvent) {
+        // Selection logic
+    }
+}
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:11-18`
+
+### Search Service Integration
+
+Uses Inkdown's built-in search service:
+
+```typescript
+const results = await this.app.searchService.search({
+    query: query,           // Search term
+    searchContent: true,    // Search inside files
+    limit: 50              // Max results
+});
+```
+
+The search service provides:
+- Fast full-text search
+- Context snippets for matches
+- Fuzzy filename matching
+- Result ranking by relevance
+
+### Note Creation
+
+```typescript
+private async createNote(inputValue: string) {
+    const value = inputValue.trim();
+    if (!value) return;
+    
+    let noteName = value;
+    if (noteName.startsWith('/')) noteName = noteName.substring(1);
+    
+    const hasPath = noteName.includes('/');
+    let notePath: string;
+    
+    if (hasPath) {
+        // Create nested folders if needed
+        const fullPath = this.app.fileSystemManager.joinPath(this.workspacePath, noteName);
+        notePath = fullPath.endsWith('.md') ? fullPath : `${fullPath}.md`;
+        
+        const parentDir = this.app.fileSystemManager.getParentPath(notePath);
+        if (parentDir && parentDir !== this.workspacePath) {
+            await this.app.fileSystemManager.createDirectory(parentDir);
+        }
+    } else {
+        // Use default location
+        const filename = noteName.endsWith('.md') ? noteName : `${noteName}.md`;
+        notePath = await this.app.filesConfigManager.getNewNotePath(filename);
+    }
+    
+    // Create and open file
+    await this.app.fileSystemManager.writeFile(notePath, '');
+    await this.app.tabManager.openTab(notePath, { openInNewTab: true });
+    this.close();
+}
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:240-278`
+
+## CSS Styling
+
+### Modal Container
+
+```css
+.quick-finder-modal {
+    width: 600px;
+    max-width: 90vw;
+}
+
+.quick-finder-modal .modal-content {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+```
+
+### Result Items
+
+```css
+.quick-finder-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.1s;
+}
+
+.quick-finder-item:hover,
+.quick-finder-item.is-selected {
+    background: var(--background-modifier-hover);
+}
+
+.quick-finder-item-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.quick-finder-item-meta {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.quick-finder-item-context {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+```
+
+### Todo Checkboxes
+
+```css
+.quick-finder-todo-check {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.quick-finder-todo-check.is-checked {
+    color: var(--color-success);
+}
+
+.quick-finder-todo-check.is-unchecked {
+    color: var(--text-muted);
+}
+```
+
+### Footer Hints
+
+```css
+.quick-finder-footer {
+    display: flex;
+    gap: 12px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    font-size: 0.85em;
+}
+
+.quick-finder-hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+}
+
+.quick-finder-hint-key {
+    padding: 2px 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-family-mono);
+    font-size: 0.9em;
+}
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.css`
+
+## Status Bar Integration
+
+The plugin adds a status bar item:
+
+```typescript
+private initStatusBarItem() {
+    const item = this.app.statusBarManager.addItem('quick-finder', 'right');
+    
+    item.setIcon('search')
+        .setTitle('Quick Finder')
+        .setOnClick(() => {
+            this.openQuickFinder();
+        });
+}
+```
+
+Click the search icon in the status bar to open Quick Finder.
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderPlugin.ts:45-54`
+
+## Configuration
+
+The Quick Finder plugin currently has no user-configurable settings.
+
+### Potential Future Settings
+
+- Maximum number of results
+- Enable/disable content search
+- Custom default location for new notes
+- Search scope (current folder vs. entire workspace)
+- File type filters
+
+## Troubleshooting
+
+### Quick Finder doesn't open
+
+**Solutions**:
+1. Check the plugin is enabled in Settings → Plugins
+2. Verify keyboard shortcut isn't conflicting (Settings → Hotkeys)
+3. Try clicking the search icon in the status bar
+
+### Search returns no results
+
+**Causes**:
+1. No workspace is open
+2. Workspace has no markdown files
+3. Search index is outdated
+
+**Solutions**:
+1. Open a workspace (File → Open Workspace)
+2. Create some markdown files
+3. Restart Inkdown to rebuild search index
+
+### File paths look wrong
+
+**Issue**: Absolute paths shown instead of relative.
+
+**Solution**: Ensure workspace is properly configured. The plugin uses:
+
+```typescript
+const path = this.app.workspace.getRelativePath(file.path)?.replace(/\.md$/, '');
+```
+
+### Can't create nested notes
+
+**Issue**: `folder/note` doesn't create folder.
+
+**Solution**: Ensure you have write permissions in the workspace directory. The plugin automatically creates parent directories.
+
+## API Reference
+
+### Plugin Class
+
+```typescript
+export default class QuickFinderPlugin extends Plugin {
+    private modal: QuickFinderModal | null = null;
+    
+    async onload(): Promise<void>;
+    async onunload(): Promise<void>;
+    private openQuickFinder(): void;
+}
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderPlugin.ts:13-44`
+
+### Modal Class
+
+```typescript
+export class QuickFinderModal extends SuggestModal<TFile | SearchResult> {
+    constructor(app: App);
+    
+    async getSuggestions(query: string): Promise<(TFile | SearchResult)[]>;
+    renderSuggestion(item: TFile | SearchResult, el: HTMLElement): void;
+    async onChooseSuggestion(item: TFile | SearchResult, evt: MouseEvent | KeyboardEvent): Promise<void>;
+    async toggleTodo(result: SearchResult): Promise<void>;
+}
+```
+
+**Source**: `packages/plugins/src/quick-finder/QuickFinderModal.ts:11-280`
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Slash Commands" icon="slash" href="/built-in/slash-commands">
+    Quick markdown element insertion
+  </Card>
+  <Card title="Search API" icon="magnifying-glass" href="/architecture/app-managers">
+    Search service documentation
+  </Card>
+  <Card title="Workspace API" icon="folder" href="/plugins/workspace">
+    Workspace and file management
+  </Card>
+</CardGroup>

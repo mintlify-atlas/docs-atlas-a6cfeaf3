@@ -1,0 +1,423 @@
+---
+title: Community Plugins
+description: Publishing and distributing community plugins
+---
+
+## Overview
+
+Community plugins extend Inkdown's functionality and can be published for other users to install. This guide covers best practices for publishing plugins.
+
+## Plugin Structure
+
+A publishable plugin should have this structure:
+
+```
+my-plugin/
+├── manifest.json
+├── package.json
+├── tsconfig.json
+├── README.md
+├── LICENSE
+├── src/
+│   └── index.ts
+├── dist/
+│   └── main.js
+└── .gitignore
+```
+
+## Required Files
+
+### manifest.json
+
+<Note>
+See [Plugin Manifest](/plugins/manifest) for complete documentation.
+</Note>
+
+```json manifest.json
+{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "A helpful plugin for Inkdown",
+  "author": "Your Name",
+  "authorUrl": "https://github.com/yourname"
+}
+```
+
+### package.json
+
+```json package.json
+{
+  "name": "inkdown-plugin-my-plugin",
+  "version": "1.0.0",
+  "description": "My Inkdown plugin",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --outfile=dist/main.js --format=cjs --external:@inkdown/api",
+    "dev": "npm run build -- --watch",
+    "lint": "eslint src --ext ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "inkdown",
+    "plugin"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@inkdown/api": "latest",
+    "@types/node": "^18.0.0",
+    "esbuild": "^0.19.0",
+    "typescript": "^5.0.0"
+  }
+}
+```
+
+### README.md
+
+Provide clear documentation:
+
+```markdown README.md
+# My Plugin
+
+A helpful plugin for Inkdown.
+
+## Features
+
+- Feature 1
+- Feature 2
+- Feature 3
+
+## Installation
+
+### From Inkdown
+
+1. Open Settings → Plugins
+2. Search for "My Plugin"
+3. Click Install
+
+### Manual Installation
+
+1. Download the latest release from [GitHub](https://github.com/yourname/inkdown-plugin-my-plugin/releases)
+2. Extract to `~/.config/inkdown/plugins/my-plugin`
+3. Restart Inkdown
+4. Enable the plugin in Settings → Plugins
+
+## Usage
+
+Describe how to use your plugin...
+
+## Settings
+
+Describe available settings...
+
+## Commands
+
+List available commands:
+
+- **My Command** (`Mod+K`): Does something useful
+
+## Support
+
+For issues and feature requests, please visit the [GitHub repository](https://github.com/yourname/inkdown-plugin-my-plugin).
+
+## License
+
+MIT
+```
+
+### LICENSE
+
+Include a license file (MIT is recommended):
+
+```text LICENSE
+MIT License
+
+Copyright (c) 2024 Your Name
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Build Process
+
+### esbuild Configuration
+
+```javascript build.js
+const esbuild = require('esbuild');
+
+esbuild.build({
+  entryPoints: ['src/index.ts'],
+  bundle: true,
+  outfile: 'dist/main.js',
+  format: 'cjs',
+  external: ['@inkdown/api', '@inkdown/core'],
+  platform: 'node',
+  target: 'node18',
+  sourcemap: false,
+  minify: true,
+}).catch(() => process.exit(1));
+```
+
+### TypeScript Configuration
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2020", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "outDir": "dist"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+### .gitignore
+
+```text .gitignore
+node_modules/
+dist/
+*.log
+.DS_Store
+```
+
+## Publishing Process
+
+### 1. Prepare Release
+
+1. **Update version** in both `manifest.json` and `package.json`
+2. **Build** the plugin: `npm run build`
+3. **Test** thoroughly in Inkdown
+4. **Update** CHANGELOG.md with changes
+5. **Commit** changes: `git commit -am "Release v1.0.0"`
+
+### 2. Create GitHub Release
+
+1. **Tag** the release:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. **Create release** on GitHub with:
+   - Release title: `v1.0.0`
+   - Release notes describing changes
+   - Attach `manifest.json` and `main.js` as assets
+
+### 3. Submit to Plugin Directory
+
+<Info>
+Check the Inkdown documentation for the current submission process.
+</Info>
+
+Typically involves:
+
+1. Fork the Inkdown plugins repository
+2. Add your plugin to the directory
+3. Submit a pull request
+
+## Versioning
+
+Follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** (1.0.0 → 2.0.0): Breaking changes
+- **MINOR** (1.0.0 → 1.1.0): New features (backward compatible)
+- **PATCH** (1.0.0 → 1.0.1): Bug fixes
+
+### Version Update Checklist
+
+- [ ] Update `version` in `manifest.json`
+- [ ] Update `version` in `package.json`
+- [ ] Update `CHANGELOG.md`
+- [ ] Update `minAppVersion` if needed
+- [ ] Create git tag
+- [ ] Create GitHub release
+- [ ] Attach build artifacts
+
+## Best Practices
+
+### Plugin Quality
+
+1. **Performance**
+   - Avoid blocking the main thread
+   - Use debouncing for frequent operations
+   - Clean up resources in `onunload()`
+
+2. **Error Handling**
+   - Handle all errors gracefully
+   - Provide useful error messages
+   - Log errors to console
+
+3. **User Experience**
+   - Provide clear command names
+   - Show feedback with notices
+   - Include helpful descriptions
+
+4. **Settings**
+   - Provide sensible defaults
+   - Include setting descriptions
+   - Validate user input
+
+### Code Quality
+
+1. **TypeScript**
+   - Use strict mode
+   - Type all functions
+   - Avoid `any` types
+
+2. **Testing**
+   - Test on multiple platforms
+   - Test with different workspace configurations
+   - Test edge cases
+
+3. **Documentation**
+   - Document all public APIs
+   - Provide usage examples
+   - Keep README up to date
+
+### Security
+
+1. **Input Validation**
+   - Validate all user input
+   - Sanitize file paths
+   - Check permissions
+
+2. **Dependencies**
+   - Minimize dependencies
+   - Keep dependencies updated
+   - Audit for vulnerabilities
+
+3. **Data Handling**
+   - Don't store sensitive data
+   - Respect user privacy
+   - Encrypt if necessary
+
+## Common Pitfalls
+
+### Don't Block the UI
+
+```typescript
+// ❌ Bad - blocks UI
+for (const file of files) {
+  await this.processFile(file);
+}
+
+// ✅ Good - allows UI updates
+for (const file of files) {
+  await this.processFile(file);
+  await new Promise(resolve => setTimeout(resolve, 0));
+}
+```
+
+### Clean Up Resources
+
+```typescript
+// ❌ Bad - resources leak
+export default class MyPlugin extends Plugin {
+  async onload() {
+    setInterval(() => this.update(), 1000);
+  }
+}
+
+// ✅ Good - proper cleanup
+export default class MyPlugin extends Plugin {
+  async onload() {
+    this.registerInterval(
+      window.setInterval(() => this.update(), 1000)
+    );
+  }
+}
+```
+
+### Handle Missing Data
+
+```typescript
+// ❌ Bad - assumes data exists
+const title = cache.frontmatter.title;
+
+// ✅ Good - defensive programming
+const title = cache?.frontmatter?.title || 'Untitled';
+```
+
+### Validate Input
+
+```typescript
+// ❌ Bad - no validation
+async createFile(name: string) {
+  await this.app.workspace.create(`${name}.md`);
+}
+
+// ✅ Good - validate input
+async createFile(name: string) {
+  if (!name || name.trim().length === 0) {
+    throw new Error('File name cannot be empty');
+  }
+  
+  const sanitized = name.replace(/[<>:"|?*]/g, '');
+  await this.app.workspace.create(`${sanitized}.md`);
+}
+```
+
+## Support and Maintenance
+
+### Issue Tracking
+
+1. Use GitHub Issues for bug reports
+2. Label issues appropriately
+3. Respond promptly to user questions
+4. Close fixed issues with release notes
+
+### Updates
+
+1. Monitor Inkdown API changes
+2. Update `minAppVersion` when needed
+3. Maintain backward compatibility
+4. Deprecate features gradually
+
+### Community
+
+1. Be responsive to feedback
+2. Accept contributions
+3. Credit contributors
+4. Maintain a positive community
+
+## Resources
+
+- [Plugin API Reference](/plugins/plugin-class)
+- [Quickstart Guide](/plugins/quickstart)
+- [Best Practices](/plugins/best-practices)
+- [GitHub Repository Template](https://github.com/inkdown/plugin-template)
+
+## Example Plugins
+
+Study these built-in plugins for examples:
+
+- **Word Count**: Status bar integration
+- **Quick Finder**: Fuzzy search modal
+- **Slash Commands**: Editor suggest
+- **Emoji**: Markdown processing + editor extensions

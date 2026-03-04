@@ -1,0 +1,412 @@
+---
+title: Configuration System
+description: Persistent configuration storage and management
+---
+
+# Configuration System
+
+Inkdown uses a centralized configuration system managed by the `ConfigManager` class. This document describes how configuration is stored, loaded, and managed across the application.
+
+## Overview
+
+The `ConfigManager` provides a simple key-value store for persisting application and plugin settings as JSON files with an optional in-memory cache layer.
+
+**Location**: `packages/core/src/ConfigManager.ts`
+
+## Storage Location
+
+Configuration files are stored in the app's config directory:
+
+| Platform | Path |
+|----------|------|
+| macOS | `~/Library/Application Support/com.furqas.inkdown/` |
+| Windows | `%APPDATA%\com.furqas.inkdown\` |
+| Linux | `~/.config/com.furqas.inkdown/` |
+
+### Directory Structure
+
+```
+~/Library/Application Support/com.furqas.inkdown/
+├── config/
+│   ├── app.json              # Application settings
+│   ├── editor.json           # Editor preferences
+│   ├── shortcuts.json        # Keyboard shortcuts
+│   ├── installed-themes.json # Installed community themes
+│   └── installed-plugins.json # Installed community plugins
+├── plugins/
+│   └── plugin-id/            # Community plugins
+│       ├── manifest.json
+│       └── main.js
+└── themes/
+    └── theme-id/             # Custom themes
+        ├── theme.json
+        ├── dark.css
+        └── light.css
+```
+
+## ConfigManager API
+
+### Initialization
+
+```typescript
+await app.configManager.init();
+```
+
+Initialization:
+1. Gets the config directory from the native platform
+2. Initializes the storage implementation (if provided)
+
+### Loading Configuration
+
+```typescript
+// Load typed configuration
+const config = await app.configManager.loadConfig<AppConfig>('app');
+
+if (config) {
+  console.log(config.theme);
+  console.log(config.colorScheme);
+}
+```
+
+**Loading Strategy**:
+1. Try KV storage cache (fastest)
+2. Fall back to file system (persistent)
+3. Create default config if not found
+
+### Saving Configuration
+
+```typescript
+// Save configuration (creates file if doesn't exist)
+await app.configManager.saveConfig('app', {
+  theme: 'default-dark',
+  colorScheme: 'dark',
+  fontSize: 14,
+  plugins: [
+    { id: 'word-count', enabled: true },
+    { id: 'quick-finder', enabled: true }
+  ]
+});
+```
+
+**Saving Strategy**:
+1. Save to KV storage cache
+2. Save to file system (atomic write)
+
+### Cache Management
+
+```typescript
+// Clear cache for a specific config
+await app.configManager.clearCache('app');
+
+// Clear all caches
+await app.configManager.clearAllCaches();
+```
+
+## Config File Mapping
+
+| Config Key | File | Description |
+|------------|------|-------------|
+| `app` | `app.json` | Main app settings (theme, font, plugins state, tabs) |
+| `editor` | `editor.json` | Editor preferences |
+| `shortcuts` | `shortcuts.json` | Keyboard shortcuts |
+| `installed-themes` | `installed-themes.json` | Community theme installation records |
+| `installed-plugins` | `installed-plugins.json` | Community plugin installation records |
+
+## Configuration Types
+
+### App Configuration
+
+The main application configuration stored in `app.json`:
+
+```typescript
+interface AppConfig {
+  // Version
+  version: string;
+  
+  // Theme settings
+  theme: string;                    // Current theme ID
+  colorScheme: 'dark' | 'light';    // Color scheme
+  
+  // Editor settings
+  font?: {
+    family: string;
+    size: number;
+  };
+  
+  // Workspace
+  workspace?: string;
+  recentWorkspaces?: string[];
+  lastOpenFiles?: string[];
+  
+  // UI State
+  sidebarWidth?: number;
+  sidebarCollapsed?: boolean;
+  viewMode?: 'editor' | 'preview' | 'split';
+  expandedDirs?: string[];
+  
+  // Tabs
+  tabs?: TabConfig[];
+  activeTabId?: string;
+  
+  // Plugin states
+  plugins?: PluginConfig[];
+  enabledPlugins?: string[];
+}
+
+interface TabConfig {
+  id: string;
+  filePath: string;
+  isPinned: boolean;
+}
+
+interface PluginConfig {
+  id: string;
+  enabled: boolean;
+  settings?: Record<string, any>;
+}
+```
+
+### Editor Configuration
+
+```typescript
+interface EditorConfig {
+  autoPairBrackets: boolean;
+  tabIndentation: boolean;
+  convertPastedHtmlToMarkdown: boolean;
+  vimMode: boolean;
+  lineNumbers: boolean;
+  lineWrapping: boolean;
+}
+```
+
+### Example app.json
+
+```json
+{
+  "version": "0.1.0",
+  "theme": "default-dark",
+  "colorScheme": "dark",
+  "font": {
+    "family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "size": 16
+  },
+  "workspace": "/Users/user/Documents/Notes",
+  "recentWorkspaces": [
+    "/Users/user/Documents/Notes",
+    "/Users/user/Projects/docs"
+  ],
+  "lastOpenFiles": [
+    "/Users/user/Documents/Notes/daily/2024-03-04.md",
+    "/Users/user/Documents/Notes/ideas.md"
+  ],
+  "sidebarWidth": 250,
+  "sidebarCollapsed": false,
+  "viewMode": "editor",
+  "tabs": [
+    {
+      "id": "tab-1234567890-abc123",
+      "filePath": "/Users/user/Documents/Notes/daily/2024-03-04.md",
+      "isPinned": false
+    }
+  ],
+  "activeTabId": "tab-1234567890-abc123",
+  "plugins": [
+    {
+      "id": "word-count",
+      "enabled": true,
+      "settings": {
+        "showCharCount": false,
+        "showWordCount": true
+      }
+    },
+    {
+      "id": "quick-finder",
+      "enabled": true,
+      "settings": {}
+    }
+  ]
+}
+```
+
+## Plugin Data Storage
+
+Plugins store their settings within the app config through the Plugin API:
+
+```typescript
+class MyPlugin extends Plugin {
+  settings: MySettings = DEFAULT_SETTINGS;
+  
+  async onload() {
+    // Load plugin settings (stored in app.json under plugins array)
+    const data = await this.loadData<MySettings>();
+    this.settings = { ...DEFAULT_SETTINGS, ...data };
+  }
+  
+  async saveSettings() {
+    // Save plugin settings
+    await this.saveData(this.settings);
+  }
+}
+```
+
+The PluginManager stores plugin settings in the `plugins` array:
+
+```typescript
+// Get plugin settings
+const settings = app.pluginManager.getPluginSettings<MySettings>('plugin-id');
+
+// Save plugin settings
+await app.pluginManager.savePluginSettings('plugin-id', newSettings);
+```
+
+## Storage Implementation
+
+The ConfigManager uses a platform-specific storage implementation:
+
+### Desktop (Tauri)
+
+- **KV Storage**: Not typically used (direct file access is fast)
+- **File Storage**: JSON files via Tauri commands
+
+```rust
+// Tauri commands
+#[tauri::command]
+fn read_config_file(name: String) -> Result<String, String>
+
+#[tauri::command]
+fn write_config_file(name: String, content: String) -> Result<(), String>
+```
+
+### Web (Future)
+
+- **KV Storage**: IndexedDB for fast caching
+- **File Storage**: IndexedDB for persistence
+
+### Mobile (Future)
+
+- **KV Storage**: AsyncStorage
+- **File Storage**: React Native File System
+
+## Best Practices
+
+### 1. Type Safety
+
+Always define TypeScript interfaces for configuration:
+
+```typescript
+interface MyPluginSettings {
+  apiKey: string;
+  enabled: boolean;
+  maxItems: number;
+}
+
+const settings = await app.configManager.loadConfig<MyPluginSettings>('my-plugin');
+```
+
+### 2. Default Values
+
+Handle missing configuration gracefully:
+
+```typescript
+const DEFAULT_SETTINGS: MyPluginSettings = {
+  apiKey: '',
+  enabled: true,
+  maxItems: 10
+};
+
+// Merge with defaults
+const settings = {
+  ...DEFAULT_SETTINGS,
+  ...await this.loadData()
+};
+```
+
+### 3. Validation
+
+Validate loaded configuration before using:
+
+```typescript
+function validateSettings(data: unknown): MyPluginSettings {
+  const settings = data as Partial<MyPluginSettings>;
+  return {
+    apiKey: typeof settings.apiKey === 'string' ? settings.apiKey : '',
+    enabled: typeof settings.enabled === 'boolean' ? settings.enabled : true,
+    maxItems: typeof settings.maxItems === 'number' ? settings.maxItems : 10
+  };
+}
+```
+
+### 4. Save Frequency
+
+Avoid excessive saves:
+
+```typescript
+// Bad: Saving on every keystroke
+onChange(value) {
+  this.settings.value = value;
+  await this.saveSettings(); // Too frequent!
+}
+
+// Good: Debounced save
+const debouncedSave = debounce(async () => {
+  await this.saveSettings();
+}, 1000);
+
+onChange(value) {
+  this.settings.value = value;
+  debouncedSave();
+}
+```
+
+## Default Configurations
+
+The ConfigManager provides sensible defaults for all configs:
+
+```typescript
+private getDefaultConfig<T>(configName: string): T {
+  const defaults: Record<string, any> = {
+    app: {
+      version: '0.1.0',
+      tabs: [],
+      workspace: '',
+      theme: 'default-dark',
+      colorScheme: 'dark',
+      font: {
+        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        size: 16,
+      },
+      plugins: [],
+      recentWorkspaces: [],
+      expandedDirs: [],
+      sidebarWidth: 250,
+      activeTabId: null,
+      viewMode: 'editor',
+      sidebarCollapsed: false,
+      lastOpenFiles: [],
+    },
+    editor: {
+      autoPairBrackets: true,
+      tabIndentation: true,
+      convertPastedHtmlToMarkdown: true,
+      vimMode: false,
+      lineNumbers: true,
+      lineWrapping: true,
+    },
+    shortcuts: {
+      shortcuts: {},
+    },
+  };
+
+  return (defaults[configName] || {}) as T;
+}
+```
+
+## Atomic Writes
+
+The ConfigManager ensures atomic writes to prevent corruption during crashes. The native platform handles writing to a temporary file and then renaming it.
+
+## Related Documentation
+
+- [App and Managers](/architecture/app-managers) - Manager APIs
+- [Plugin Development](/plugins/introduction) - Using config in plugins
+- [Theme System](/architecture/theme-system) - Theme configuration

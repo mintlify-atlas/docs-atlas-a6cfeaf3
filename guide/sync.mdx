@@ -1,0 +1,422 @@
+---
+title: Sync
+description: Synchronize your notes across devices with end-to-end encryption
+---
+
+# Sync
+
+Inkdown's sync feature allows you to keep your notes synchronized across multiple devices with end-to-end encryption, ensuring your data remains private and secure.
+
+<Warning>
+  The sync functionality is currently in active development. Core infrastructure is implemented, and the feature will be available in an upcoming release.
+</Warning>
+
+## Overview
+
+Inkdown sync is designed with the following principles:
+
+- **End-to-End Encryption**: All notes are encrypted on your device before being sent to the server
+- **Multi-Device Support**: Sync across desktop and mobile devices
+- **Conflict Resolution**: Automatic handling of concurrent edits
+- **Selective Sync**: Choose which workspaces to sync
+- **Version History**: Access previous versions of your notes
+- **Real-time Updates**: WebSocket-based live synchronization
+
+## How Sync Works
+
+### Architecture
+
+The sync system consists of several components:
+
+**Client-Side Components**:
+- `SyncEngine`: Orchestrates the sync process
+- `SyncOrchestrator`: Manages sync operations and coordination
+- `NoteSyncService`: Handles note upload/download
+- `FileWatcherService`: Monitors local file changes
+- `EncryptionService`: Encrypts/decrypts note content
+- `LocalDatabase`: Caches sync state locally
+- `ConflictResolver`: Resolves conflicts between versions
+- `DeviceManager`: Manages device registration
+
+**Server-Side**:
+- Authentication and user management
+- Encrypted note storage
+- WebSocket connections for real-time updates
+- Version history tracking
+- Multi-workspace support
+
+### Encryption
+
+All notes are encrypted using **AES-256-GCM** before leaving your device:
+
+```typescript
+interface EncryptedNote {
+  encrypted_title: string;    // Base64-encoded encrypted title
+  encrypted_content: string;  // Base64-encoded encrypted content
+  encryption_algo: 'AES-256-GCM';
+  nonce: string;             // Base64-encoded initialization vector
+  content_hash: string;      // SHA-256 hash for integrity
+}
+```
+
+**Key Features**:
+- Encryption key derived from your password using PBKDF2
+- Unique nonce for each encrypted note
+- Content hashes for integrity verification
+- Server never has access to your encryption key
+
+## Getting Started with Sync
+
+<Note>
+  These instructions will be available once sync is fully released.
+</Note>
+
+### 1. Create an Account
+
+1. Open **Settings** with `Cmd/Ctrl+,`
+2. Navigate to **Sync**
+3. Click **Sign Up**
+4. Enter your username, email, and password
+5. Your account will be created and device registered
+
+### 2. Link Your Workspace
+
+1. Select the workspace you want to sync
+2. Click **Enable Sync** for the workspace
+3. Your notes will begin uploading (encrypted)
+
+### 3. Add Another Device
+
+1. Install Inkdown on your second device
+2. Sign in with your account credentials
+3. Select which workspaces to sync
+4. Notes will download automatically
+
+## Sync Modes
+
+Inkdown supports two sync modes:
+
+### Online Mode
+
+- Real-time synchronization via WebSocket
+- Instant updates when other devices make changes
+- Immediate conflict detection
+- Requires internet connection
+
+### Offline Mode
+
+- Changes are queued locally
+- Sync occurs when connection is restored
+- Full functionality available offline
+- Automatic reconnection
+
+## Features
+
+### Multi-Workspace Support
+
+Each workspace can be synced independently:
+
+```typescript
+interface Workspace {
+  id: string;              // Unique workspace ID
+  name: string;            // Workspace name
+  created_at: string;
+  updated_at: string;
+  is_default: boolean;
+  note_count?: number;     // Number of notes in workspace
+}
+```
+
+**Benefits**:
+- Separate work and personal notes
+- Share workspaces with team members (future)
+- Selective sync to save bandwidth
+- Multiple workspaces per device
+
+### Workspace Links
+
+Local directories are linked to remote workspaces:
+
+```typescript
+interface WorkspaceLink {
+  localPath: string;          // Local directory path
+  remoteWorkspaceId: string;  // Remote workspace ID
+  linkedAt: string;           // Link creation time
+}
+```
+
+### Conflict Resolution
+
+When two devices edit the same note simultaneously, Inkdown detects the conflict:
+
+```typescript
+interface ConflictInfo {
+  note_id: string;
+  local_hash: string;      // Hash of local version
+  server_hash: string;     // Hash of server version
+  local_version: number;
+  server_version: number;
+}
+```
+
+**Resolution Strategies**:
+1. **Keep Local**: Your version overwrites the server
+2. **Keep Remote**: Server version overwrites your changes
+3. **Merge**: Combine both versions (manual)
+
+The conflict resolver provides tools to compare versions and choose the best resolution.
+
+### Version History
+
+Access previous versions of your notes:
+
+```typescript
+interface NoteVersion {
+  id: string;
+  note_id: string;
+  version: number;
+  encrypted_title: string;
+  encrypted_content: string;
+  content_hash: string;
+  device_id: string;
+  created_at: string;
+}
+```
+
+**Features**:
+- View all versions of a note
+- Compare versions side-by-side
+- Rollback to previous version
+- Version created on each sync
+
+### Device Management
+
+Manage all devices connected to your account:
+
+```typescript
+interface Device {
+  id: string;
+  name: string;                              // e.g., "MacBook Pro"
+  type: 'desktop' | 'mobile' | 'tablet';
+  os: string;                                // e.g., "macOS 14.0"
+  app_version: string;
+  workspace_ids?: string[];                  // Linked workspaces
+  last_active: string;
+  is_revoked: boolean;
+  is_current?: boolean;                      // This device
+}
+```
+
+**Device Actions**:
+- View all registered devices
+- Revoke device access
+- Rename devices
+- See last active time
+
+## Sync Process
+
+### Efficient Synchronization
+
+Inkdown uses batch diff algorithm for efficient sync:
+
+1. **Client** sends manifest of local notes:
+   ```typescript
+   interface LocalNoteInfo {
+     id: string;
+     content_hash: string;
+     version: number;
+   }
+   ```
+
+2. **Server** compares with remote notes and responds:
+   ```typescript
+   interface BatchDiffResponse {
+     to_download: NoteResponse[];  // Server has newer
+     to_upload: string[];          // Client has newer
+     to_delete: string[];          // Deleted on server
+     conflicts: ConflictInfo[];    // Need resolution
+     sync_time: string;
+   }
+   ```
+
+3. **Client** applies changes:
+   - Downloads updated notes
+   - Uploads modified notes
+   - Deletes removed notes
+   - Resolves conflicts
+
+### Real-Time Updates
+
+WebSocket connection enables instant updates:
+
+```typescript
+type WSMessageType =
+  | 'sync_request'   // Request full sync
+  | 'sync_response'  // Sync results
+  | 'note_update'    // Note was updated
+  | 'note_delete'    // Note was deleted
+  | 'conflict'       // Conflict detected
+  | 'ack'           // Acknowledge message
+  | 'ping'          // Keep-alive
+  | 'pong';         // Keep-alive response
+```
+
+### File Watching
+
+Local file changes are detected automatically:
+
+```typescript
+interface FileChangeEvent {
+  type: 'create' | 'modify' | 'delete' | 'rename';
+  path: string;
+  oldPath?: string;      // For rename events
+  timestamp: Date;
+  contentHash?: string;
+}
+```
+
+Changes are queued and synced when conditions are met (network available, not rate-limited, etc.).
+
+## Security
+
+### Encryption Details
+
+**Key Derivation**:
+- Algorithm: PBKDF2-HMAC-SHA256
+- Iterations: 100,000+
+- Salt: Unique per user
+- Key length: 256 bits
+
+**Encryption**:
+- Algorithm: AES-256-GCM
+- Nonce: 96-bit random value (unique per note)
+- Authentication: Built-in AEAD
+- Encoding: Base64 for transport
+
+**Storage**:
+- Encryption keys stored securely on device
+- Password never sent to server
+- Server stores only encrypted data
+- Content hashes prevent tampering
+
+### Credential Storage
+
+Sync credentials are stored securely:
+
+```typescript
+interface CredentialStorage {
+  storePassword(password: string): Promise<void>;
+  getPassword(): Promise<{ ok: boolean; password?: string }>;
+  hasPassword(): Promise<boolean>;
+  clearPassword(): Promise<void>;
+}
+```
+
+- Credentials encrypted before storage
+- Device-specific encryption
+- Cleared on sign-out
+- Protected by OS security
+
+## Selective Sync
+
+Choose what to sync:
+
+```typescript
+interface SelectiveSyncManager {
+  // Enable/disable sync for paths
+  ignorePath(path: string): Promise<void>;
+  unignorePath(path: string): Promise<void>;
+  
+  // Check if path should sync
+  shouldSync(path: string): boolean;
+  
+  // Get all ignored paths
+  getIgnoredPaths(): string[];
+}
+```
+
+**Use Cases**:
+- Exclude large files
+- Skip temporary notes
+- Separate sensitive data
+- Reduce bandwidth usage
+
+## Sync Status
+
+Monitor sync progress:
+
+```typescript
+interface SyncVerificationResult {
+  synced: number;      // Notes in sync
+  pending: number;     // Awaiting sync
+  conflicts: number;   // Need resolution
+  total: number;       // Total notes
+  lastCheck: Date;     // Last verification
+}
+```
+
+View sync status in the UI:
+- Green indicator: All synced
+- Yellow indicator: Sync in progress
+- Red indicator: Conflicts or errors
+
+## Troubleshooting
+
+### Sync Not Working
+
+1. Check internet connection
+2. Verify account credentials
+3. Ensure workspace is linked
+4. Check sync is enabled in settings
+5. Review error logs
+
+### Conflicts
+
+1. Open the conflict resolution dialog
+2. Compare the conflicting versions
+3. Choose a resolution strategy
+4. Apply the resolution
+
+### Missing Notes
+
+1. Force a full sync
+2. Check selective sync settings
+3. Verify note not deleted on another device
+4. Check version history
+
+### Performance Issues
+
+1. Enable selective sync for large workspaces
+2. Reduce real-time sync frequency
+3. Check available bandwidth
+4. Clear local database cache
+
+## Privacy
+
+Inkdown's sync is designed with privacy as a priority:
+
+- ✅ End-to-end encryption
+- ✅ Server cannot read your notes
+- ✅ Zero-knowledge architecture
+- ✅ You control your data
+- ✅ Can export all data
+- ✅ Can delete account and all data
+
+## Coming Soon
+
+Sync features under development:
+
+- [ ] Initial release of sync functionality
+- [ ] Team workspaces and collaboration
+- [ ] Share notes via encrypted links
+- [ ] Sync attachments and images
+- [ ] Optimized mobile sync
+- [ ] Self-hosted sync server option
+- [ ] Two-factor authentication
+- [ ] Advanced conflict resolution UI
+
+## Next Steps
+
+- Configure your editor in [Editor Basics](/guide/editor-basics)
+- Learn [Keyboard Shortcuts](/guide/keyboard-shortcuts) for efficiency
+- Customize appearance with [Themes](/guide/themes)

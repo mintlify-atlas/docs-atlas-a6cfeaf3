@@ -1,0 +1,551 @@
+---
+title: Best Practices
+description: Tips and guidelines for creating high-quality Inkdown themes
+---
+
+Follow these best practices to create themes that are beautiful, accessible, and maintainable.
+
+## Color Selection
+
+### Use Sufficient Contrast
+
+Ensure text is readable against backgrounds:
+
+```css
+/* ✅ Good - 7:1 contrast ratio */
+.theme-dark {
+  --bg-primary: #161618;
+  --text-primary: #e0e0e0;
+}
+
+/* ❌ Bad - 2:1 contrast ratio */
+.theme-dark {
+  --bg-primary: #404040;
+  --text-primary: #606060;
+}
+```
+
+**Minimum contrast ratios** (WCAG guidelines):
+- **AA** (minimum): 4.5:1 for normal text, 3:1 for large text
+- **AAA** (enhanced): 7:1 for normal text, 4.5:1 for large text
+
+Use tools to check:
+- [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)
+- [Coolors Contrast Checker](https://coolors.co/contrast-checker)
+
+### Choose a Cohesive Color Palette
+
+Start with a base color and derive others:
+
+```css
+.theme-dark {
+  /* Base colors */
+  --color-primary: #007acc;
+  --color-primary-hover: #005a9e;  /* Darker shade */
+  
+  /* Derived colors */
+  --editor-cursor: var(--color-primary);
+  --link-color: var(--color-primary);
+  --button-primary-bg: var(--color-primary);
+}
+```
+
+### Use Semantic Naming
+
+Name colors by purpose, not appearance:
+
+```css
+/* ✅ Good - semantic names */
+--color-success: #00ff00;
+--color-danger: #ff0000;
+--bg-elevated: #2a2a2a;
+
+/* ❌ Bad - appearance-based names */
+--color-green: #00ff00;
+--color-red: #ff0000;
+--bg-slightly-darker: #2a2a2a;
+```
+
+### Limit Your Palette
+
+Too many colors create visual noise:
+
+```css
+/* ✅ Good - focused palette */
+.theme-dark {
+  --color-primary: #007acc;     /* Blue for links, actions */
+  --color-success: #2ea043;     /* Green for success */
+  --color-warning: #fb8500;     /* Orange for warnings */
+  --color-danger: #cf222e;      /* Red for errors */
+}
+
+/* ❌ Bad - too many accent colors */
+.theme-dark {
+  --color-1: #007acc;
+  --color-2: #ff6b6b;
+  --color-3: #51cf66;
+  --color-4: #ffd43b;
+  --color-5: #a855f7;
+  --color-6: #06b6d4;
+  /* ... and so on */
+}
+```
+
+## Syntax Highlighting
+
+### Follow Language Conventions
+
+Use colors that match user expectations:
+
+```css
+.theme-dark {
+  --code-keyword: #ff7b72;    /* Red/pink for keywords */
+  --code-string: #a5d6ff;     /* Blue for strings */
+  --code-comment: #8b949e;    /* Gray for comments */
+  --code-function: #d2a8ff;   /* Purple for functions */
+  --code-number: #79c0ff;     /* Cyan for numbers */
+}
+```
+
+Common conventions:
+- **Keywords**: Red, pink, or magenta
+- **Strings**: Green or blue
+- **Comments**: Gray or muted colors
+- **Functions**: Purple or yellow
+- **Numbers**: Cyan or orange
+
+### Distinguish Similar Elements
+
+Ensure different token types are visually distinct:
+
+```css
+/* ✅ Good - distinct colors */
+.theme-dark {
+  --code-keyword: #ff7b72;   /* Pink */
+  --code-function: #d2a8ff;  /* Purple - clearly different */
+  --code-string: #a5d6ff;    /* Blue - clearly different */
+}
+
+/* ❌ Bad - too similar */
+.theme-dark {
+  --code-keyword: #ff7b72;
+  --code-function: #ff8b82;  /* Too close to keyword */
+  --code-string: #ff9b92;    /* Too close to both */
+}
+```
+
+### Test with Real Code
+
+Create test files with different languages:
+
+````markdown
+```typescript
+// Test your syntax highlighting
+function greet(name: string): string {
+  // Comment
+  const message = `Hello, ${name}!`;
+  return message;
+}
+
+const result = greet("World");
+console.log(result);
+```
+````
+
+## Typography
+
+### Respect Shared Font Variables
+
+Don't override these unless you have a good reason:
+
+```css
+/* ❌ Usually don't override */
+:root {
+  --font-family: 'Comic Sans MS', cursive;
+  --font-family-mono: 'Courier New', monospace;
+}
+
+/* ✅ Let users configure fonts in settings */
+```
+
+### Use Appropriate Font Weights
+
+Inkdown provides semantic font weight variables:
+
+```css
+.theme-dark {
+  --font-weight-normal: 500;      /* Body text */
+  --font-weight-heading: 800;     /* Headings */
+  --font-weight-bold: 700;        /* Bold text */
+  --font-weight-code: 400;        /* Inline code */
+}
+```
+
+Keep weights within reasonable ranges:
+- **Normal text**: 400-500
+- **Headings**: 600-800
+- **Bold**: 600-700
+
+## Layout and Spacing
+
+### Don't Override Spacing Variables
+
+Spacing should be consistent across themes:
+
+```css
+/* ❌ Don't override these */
+:root {
+  --spacing-xs: 8px;   /* Keep standard */
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+}
+```
+
+### Use Variable References
+
+Reference spacing variables instead of hardcoding:
+
+```css
+/* ✅ Good - uses variables */
+.my-element {
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ❌ Bad - hardcoded */
+.my-element {
+  padding: 16px;
+  margin-bottom: 8px;
+}
+```
+
+## Performance
+
+### Minimize Custom CSS
+
+Only define variables you need to change:
+
+```css
+/* ✅ Good - minimal overrides */
+.theme-dark {
+  --bg-primary: #1a1a1a;
+  --text-primary: #e0e0e0;
+  --color-primary: #00d4ff;
+}
+
+/* ❌ Bad - redundant definitions */
+.theme-dark {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242424;  /* Same as default */
+  --bg-tertiary: #2e2e2e;   /* Same as default */
+  /* ... hundreds of lines copying defaults */
+}
+```
+
+### Avoid Complex Selectors
+
+Keep selectors flat and simple:
+
+```css
+/* ✅ Good - flat selectors */
+.theme-dark {
+  --heading-h1: #569cd6;
+}
+
+/* ❌ Bad - overly specific */
+.theme-dark .editor .content .heading.level-1 h1 {
+  color: #569cd6;
+}
+```
+
+### Use Variable References for Consistency
+
+Reuse colors through references:
+
+```css
+/* ✅ Good - DRY principle */
+.theme-dark {
+  --color-primary: #007acc;
+  --editor-cursor: var(--color-primary);
+  --link-color: var(--color-primary);
+  --button-primary-bg: var(--color-primary);
+}
+
+/* ❌ Bad - duplicated values */
+.theme-dark {
+  --color-primary: #007acc;
+  --editor-cursor: #007acc;
+  --link-color: #007acc;
+  --button-primary-bg: #007acc;
+}
+```
+
+## Testing
+
+### Test with Comprehensive Content
+
+Create a test document that includes:
+
+```markdown
+# Testing My Theme
+
+## Headings
+# H1 Heading
+## H2 Heading
+### H3 Heading
+#### H4 Heading
+##### H5 Heading
+###### H6 Heading
+
+## Text Formatting
+**Bold text** and *italic text* and ***bold italic***.
+
+~~Strikethrough~~ and ==highlighted== text.
+
+## Links and Code
+[Link text](https://example.com) and `inline code`.
+
+## Code Blocks
+```javascript
+function test() {
+  // Comment
+  const str = "string";
+  return 42;
+}
+```
+
+## Lists
+- Unordered
+- List
+  - Nested
+  - Items
+
+1. Ordered
+2. List
+   1. Nested
+   2. Items
+
+## Blockquotes
+> This is a quote
+> with multiple lines
+
+## Tables
+| Header 1 | Header 2 |
+|----------|----------|
+| Cell 1   | Cell 2   |
+
+## Callouts
+> [!NOTE]
+> This is a note callout
+
+> [!WARNING]
+> This is a warning callout
+```
+
+### Test in Different Environments
+
+- **Different displays**: Test on multiple screens (laptop, external monitor, high-DPI)
+- **Different zoom levels**: 80%, 100%, 125%, 150%
+- **Different lighting**: Bright room, dim room, night mode
+- **Different content**: Code, prose, mixed documents
+
+### Check Accessibility
+
+Use automated tools:
+- Browser DevTools accessibility checker
+- [axe DevTools](https://www.deque.com/axe/devtools/)
+- [WAVE](https://wave.webaim.org/)
+
+Test manually:
+- Navigate without a mouse (keyboard only)
+- Use a screen reader
+- Enable high contrast mode
+- Test with color blindness simulators
+
+## Documentation
+
+### Write a Good README
+
+Include:
+1. **Theme name and description**
+2. **Preview screenshots** (both light and dark if applicable)
+3. **Installation instructions**
+4. **Design philosophy**
+5. **Color palette**
+6. **License**
+
+### Provide Examples
+
+Include example markdown files:
+
+```
+my-theme/
+├── examples/
+│   ├── demo.md           # Showcase all features
+│   ├── code-samples.md   # Various code blocks
+│   └── prose.md          # Long-form writing
+```
+
+### Document Color Choices
+
+Explain your decisions:
+
+```markdown
+## Color Palette
+
+Inspired by the warm tones of sunrise and sunset:
+
+- **Background**: #1a1a1a - Deep charcoal for comfortable viewing
+- **Text**: #e0e0e0 - Warm white for excellent readability
+- **Primary**: #ff9f0a - Sunrise orange for interactive elements
+- **Success**: #32d74b - Fresh green for positive actions
+```
+
+## Versioning
+
+### Use Semantic Versioning
+
+Follow semver (MAJOR.MINOR.PATCH):
+
+- **MAJOR**: Breaking changes (complete redesign)
+- **MINOR**: New features (add light mode)
+- **PATCH**: Bug fixes (fix heading color)
+
+Examples:
+```
+1.0.0 - Initial release
+1.1.0 - Added light mode support
+1.1.1 - Fixed link color in light mode
+1.2.0 - Added custom callout styling
+2.0.0 - Complete redesign with new color palette
+```
+
+### Document Changes
+
+Maintain a CHANGELOG.md:
+
+```markdown
+# Changelog
+
+## [1.1.1] - 2024-03-15
+### Fixed
+- Link color now has sufficient contrast in light mode
+- Code block backgrounds are more visible
+
+## [1.1.0] - 2024-03-01
+### Added
+- Light mode support
+- Custom callout styling
+
+## [1.0.0] - 2024-02-15
+### Added
+- Initial release with dark mode
+```
+
+## Common Mistakes to Avoid
+
+### 1. Hardcoding Colors
+
+```css
+/* ❌ Bad - duplicated values */
+.button {
+  background: #007acc;
+  border: 1px solid #007acc;
+}
+
+/* ✅ Good - use variables */
+.theme-dark {
+  --color-primary: #007acc;
+}
+
+.button {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+```
+
+### 2. Insufficient Testing
+
+Don't just test with simple content:
+- Test complex nested structures
+- Test with very long content
+- Test with empty states
+
+### 3. Ignoring Accessibility
+
+Accessibility isn't optional:
+- Check contrast ratios
+- Test with keyboard navigation
+- Ensure focus indicators are visible
+
+### 4. Overcomplicating
+
+Simpler themes are often better:
+- Don't use 20 different colors
+- Don't override every variable
+- Don't create overly specific selectors
+
+### 5. Not Supporting Both Modes
+
+If possible, support both light and dark:
+- More users can use your theme
+- Shows attention to detail
+- Demonstrates theme versatility
+
+## Inspiration and Resources
+
+### Color Palette Generators
+
+- [Coolors](https://coolors.co/) - Color scheme generator
+- [Adobe Color](https://color.adobe.com/) - Color wheel and palettes
+- [Paletton](https://paletton.com/) - Color scheme designer
+
+### Theme Inspiration
+
+- [VS Code Themes](https://vscodethemes.com/) - Thousands of editor themes
+- [Dracula Theme](https://draculatheme.com/) - Popular dark theme
+- [Nord Theme](https://www.nordtheme.com/) - Arctic color palette
+- [Catppuccin](https://catppuccin.com/) - Soothing pastel theme
+
+### Accessibility Tools
+
+- [Contrast Ratio Calculator](https://contrast-ratio.com/)
+- [Color Blind Simulator](https://www.color-blindness.com/coblis-color-blindness-simulator/)
+- [Who Can Use](https://www.whocanuse.com/) - Contrast checker with simulations
+
+## Checklist
+
+Before publishing your theme:
+
+- [ ] All text has sufficient contrast (4.5:1 minimum)
+- [ ] Tested with comprehensive markdown content
+- [ ] Both light and dark modes (if supported)
+- [ ] README with screenshots and installation instructions
+- [ ] Semantic versioning in manifest.json
+- [ ] No hardcoded colors (uses variables)
+- [ ] Syntax highlighting tested with real code
+- [ ] UI elements (buttons, inputs, etc.) are styled
+- [ ] Callouts are readable and distinct
+- [ ] Tables are properly styled
+- [ ] Links are visible and distinguishable
+- [ ] Focus indicators are visible
+- [ ] Theme name is unique and descriptive
+- [ ] License file included
+- [ ] No JavaScript or executable code
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/themes/quickstart">
+    Create your first theme
+  </Card>
+  <Card title="Community Themes" icon="users" href="/themes/community-themes">
+    Publish and share your theme
+  </Card>
+  <Card title="CSS Variables" icon="palette" href="/themes/css-variables">
+    Complete variable reference
+  </Card>
+  <Card title="CSS Architecture" icon="sitemap" href="/themes/css-architecture">
+    Understand theme structure
+  </Card>
+</CardGroup>

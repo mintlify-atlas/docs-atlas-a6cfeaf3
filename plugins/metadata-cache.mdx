@@ -1,0 +1,521 @@
+---
+title: Metadata Cache
+description: Access parsed file metadata
+---
+
+## Overview
+
+The `MetadataCache` provides fast access to parsed file metadata including frontmatter, links, tags, headings, and embeds.
+
+```typescript
+const cache = this.app.metadataCache.getCache('/path/to/file.md');
+if (cache) {
+  console.log('Frontmatter:', cache.frontmatter);
+  console.log('Links:', cache.links);
+  console.log('Tags:', cache.tags);
+  console.log('Headings:', cache.headings);
+}
+```
+
+## MetadataCache Interface
+
+```typescript
+interface MetadataCache extends Events {
+  getCache(path: string): CachedMetadata | null;
+  getFileCache(path: string): CachedMetadata | null;
+  onChanged(callback: (file: TFile, data: string, cache: CachedMetadata) => void): EventRef;
+}
+```
+
+## CachedMetadata
+
+```typescript
+interface CachedMetadata {
+  frontmatter?: FrontMatterCache;
+  links?: LinkCache[];
+  embeds?: EmbedCache[];
+  tags?: TagCache[];
+  headings?: HeadingCache[];
+}
+```
+
+## Getting Metadata
+
+### getCache()
+
+<ParamField path="getCache" type="(path: string) => CachedMetadata | null">
+  Get cached metadata for a file by path.
+</ParamField>
+
+```typescript
+const cache = this.app.metadataCache.getCache('/notes/daily.md');
+if (cache) {
+  console.log('Found metadata for daily.md');
+} else {
+  console.log('No metadata cached');
+}
+```
+
+### getFileCache()
+
+<ParamField path="getFileCache" type="(path: string) => CachedMetadata | null">
+  Alias for `getCache()`.
+</ParamField>
+
+```typescript
+const cache = this.app.metadataCache.getFileCache('/notes/project.md');
+```
+
+## Frontmatter
+
+### FrontMatterCache
+
+```typescript
+interface FrontMatterCache extends Record<string, unknown> {}
+```
+
+Frontmatter fields are accessible as properties:
+
+```typescript
+const cache = this.app.metadataCache.getCache(file.path);
+if (cache?.frontmatter) {
+  const title = cache.frontmatter.title;
+  const tags = cache.frontmatter.tags;
+  const date = cache.frontmatter.date;
+  const customField = cache.frontmatter.myCustomField;
+  
+  console.log('Title:', title);
+  console.log('Tags:', tags);
+}
+```
+
+### Example: Filter by Frontmatter
+
+```typescript
+async getPublishedNotes() {
+  const files = await this.app.workspace.getMarkdownFiles();
+  
+  return files.filter(file => {
+    const cache = this.app.metadataCache.getCache(file.path);
+    return cache?.frontmatter?.status === 'published';
+  });
+}
+
+async getDraftNotes() {
+  const files = await this.app.workspace.getMarkdownFiles();
+  
+  return files.filter(file => {
+    const cache = this.app.metadataCache.getCache(file.path);
+    return cache?.frontmatter?.draft === true;
+  });
+}
+```
+
+## Links
+
+### LinkCache
+
+```typescript
+interface LinkCache {
+  link: string;           // The link target
+  original: string;       // Original link text
+  displayText?: string;   // Display text (if different)
+  position: CachePosition;
+}
+```
+
+### Example: Find Broken Links
+
+```typescript
+async findBrokenLinks() {
+  const files = await this.app.workspace.getMarkdownFiles();
+  const brokenLinks: Array<{file: TFile; link: string}> = [];
+  
+  for (const file of files) {
+    const cache = this.app.metadataCache.getCache(file.path);
+    if (!cache?.links) continue;
+    
+    for (const link of cache.links) {
+      const targetFile = this.app.workspace.getAbstractFileByPath(link.link);
+      if (!targetFile) {
+        brokenLinks.push({
+          file,
+          link: link.link,
+        });
+      }
+    }
+  }
+  
+  return brokenLinks;
+}
+```
+
+### Example: Build Backlinks
+
+```typescript
+getBacklinks(targetFile: TFile): Array<{file: TFile; link: LinkCache}> {
+  const allFiles = await this.app.workspace.getMarkdownFiles();
+  const backlinks: Array<{file: TFile; link: LinkCache}> = [];
+  
+  for (const file of allFiles) {
+    const cache = this.app.metadataCache.getCache(file.path);
+    if (!cache?.links) continue;
+    
+    for (const link of cache.links) {
+      if (link.link === targetFile.path || link.link === targetFile.basename) {
+        backlinks.push({ file, link });
+      }
+    }
+  }
+  
+  return backlinks;
+}
+```
+
+## Tags
+
+### TagCache
+
+```typescript
+interface TagCache {
+  tag: string;            // Tag name (including #)
+  position: CachePosition;
+}
+```
+
+### Example: Find Files by Tag
+
+```typescript
+async getFilesByTag(tag: string): Promise<TFile[]> {
+  const files = await this.app.workspace.getMarkdownFiles();
+  const normalizedTag = tag.startsWith('#') ? tag : '#' + tag;
+  
+  return files.filter(file => {
+    const cache = this.app.metadataCache.getCache(file.path);
+    return cache?.tags?.some(t => t.tag === normalizedTag);
+  });
+}
+
+// Usage
+const importantFiles = await this.getFilesByTag('important');
+const todoFiles = await this.getFilesByTag('#todo');
+```
+
+### Example: Get All Tags
+
+```typescript
+async getAllTags(): Promise<Set<string>> {
+  const files = await this.app.workspace.getMarkdownFiles();
+  const allTags = new Set<string>();
+  
+  for (const file of files) {
+    const cache = this.app.metadataCache.getCache(file.path);
+    if (cache?.tags) {
+      for (const tag of cache.tags) {
+        allTags.add(tag.tag);
+      }
+    }
+  }
+  
+  return allTags;
+}
+```
+
+## Headings
+
+### HeadingCache
+
+```typescript
+interface HeadingCache {
+  heading: string;        // Heading text
+  level: number;          // Heading level (1-6)
+  position: CachePosition;
+}
+```
+
+### Example: Generate Table of Contents
+
+```typescript
+generateTOC(file: TFile): string {
+  const cache = this.app.metadataCache.getCache(file.path);
+  if (!cache?.headings) return '';
+  
+  const lines: string[] = [];
+  
+  for (const heading of cache.headings) {
+    const indent = '  '.repeat(heading.level - 1);
+    const link = heading.heading.toLowerCase().replace(/\s+/g, '-');
+    lines.push(`${indent}- [${heading.heading}](#${link})`);
+  }
+  
+  return lines.join('\n');
+}
+```
+
+### Example: Find Files by Heading
+
+```typescript
+async findFilesByHeading(searchText: string): Promise<Array<{file: TFile; heading: HeadingCache}>> {
+  const files = await this.app.workspace.getMarkdownFiles();
+  const results: Array<{file: TFile; heading: HeadingCache}> = [];
+  
+  for (const file of files) {
+    const cache = this.app.metadataCache.getCache(file.path);
+    if (!cache?.headings) continue;
+    
+    for (const heading of cache.headings) {
+      if (heading.heading.toLowerCase().includes(searchText.toLowerCase())) {
+        results.push({ file, heading });
+      }
+    }
+  }
+  
+  return results;
+}
+```
+
+## Embeds
+
+### EmbedCache
+
+```typescript
+interface EmbedCache {
+  original: string;  // Original embed syntax
+}
+```
+
+### Example: Find Files with Images
+
+```typescript
+async getFilesWithImages(): Promise<TFile[]> {
+  const files = await this.app.workspace.getMarkdownFiles();
+  
+  return files.filter(file => {
+    const cache = this.app.metadataCache.getCache(file.path);
+    return cache?.embeds && cache.embeds.length > 0;
+  });
+}
+```
+
+## Position Information
+
+### CachePosition
+
+```typescript
+interface CachePosition {
+  start: {
+    line: number;   // Line number (0-indexed)
+    col: number;    // Column number (0-indexed)
+    offset: number; // Character offset from start
+  };
+  end: {
+    line: number;
+    col: number;
+    offset: number;
+  };
+}
+```
+
+### Example: Get Line Range
+
+```typescript
+function getLineRange(position: CachePosition): {start: number; end: number} {
+  return {
+    start: position.start.line,
+    end: position.end.line,
+  };
+}
+```
+
+## Events
+
+### onChanged()
+
+<ParamField path="onChanged" type="(callback: (file: TFile, data: string, cache: CachedMetadata) => void) => EventRef">
+  Called when file metadata is updated.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.metadataCache.onChanged((file, data, cache) => {
+    console.log('Metadata changed:', file.path);
+    console.log('New content:', data);
+    console.log('Parsed cache:', cache);
+    
+    // React to changes
+    this.updateIndex(file, cache);
+  })
+);
+```
+
+## Complete Examples
+
+### Tag Browser Plugin
+
+```typescript
+export default class TagBrowserPlugin extends Plugin {
+  private tagIndex = new Map<string, Set<string>>();
+
+  async onload() {
+    // Build initial index
+    await this.buildTagIndex();
+
+    // Update index on metadata changes
+    this.registerEvent(
+      this.app.metadataCache.onChanged((file, data, cache) => {
+        this.updateTagIndex(file, cache);
+      })
+    );
+
+    // Add command to show tags
+    this.addCommand({
+      id: 'show-tags',
+      name: 'Show All Tags',
+      callback: () => {
+        const tags = Array.from(this.tagIndex.keys()).sort();
+        console.log('All tags:', tags);
+      },
+    });
+  }
+
+  async buildTagIndex() {
+    this.tagIndex.clear();
+    const files = await this.app.workspace.getMarkdownFiles();
+
+    for (const file of files) {
+      const cache = this.app.metadataCache.getCache(file.path);
+      if (cache) {
+        this.updateTagIndex(file, cache);
+      }
+    }
+  }
+
+  updateTagIndex(file: TFile, cache: CachedMetadata) {
+    // Remove old entries
+    for (const [tag, files] of this.tagIndex.entries()) {
+      files.delete(file.path);
+    }
+
+    // Add new entries
+    if (cache.tags) {
+      for (const tag of cache.tags) {
+        if (!this.tagIndex.has(tag.tag)) {
+          this.tagIndex.set(tag.tag, new Set());
+        }
+        this.tagIndex.get(tag.tag)!.add(file.path);
+      }
+    }
+  }
+
+  getFilesForTag(tag: string): string[] {
+    return Array.from(this.tagIndex.get(tag) || []);
+  }
+}
+```
+
+### Link Validator Plugin
+
+```typescript
+export default class LinkValidatorPlugin extends Plugin {
+  async onload() {
+    this.addCommand({
+      id: 'check-broken-links',
+      name: 'Check for Broken Links',
+      callback: async () => {
+        const broken = await this.findBrokenLinks();
+        
+        if (broken.length === 0) {
+          this.showNotice('No broken links found!');
+        } else {
+          this.showNotice(`Found ${broken.length} broken links`);
+          console.log('Broken links:', broken);
+        }
+      },
+    });
+  }
+
+  async findBrokenLinks() {
+    const files = await this.app.workspace.getMarkdownFiles();
+    const brokenLinks: Array<{
+      file: TFile;
+      link: string;
+      line: number;
+    }> = [];
+
+    for (const file of files) {
+      const cache = this.app.metadataCache.getCache(file.path);
+      if (!cache?.links) continue;
+
+      for (const link of cache.links) {
+        // Check if target exists
+        const target = this.app.workspace.getAbstractFileByPath(link.link);
+        if (!target) {
+          brokenLinks.push({
+            file,
+            link: link.link,
+            line: link.position.start.line,
+          });
+        }
+      }
+    }
+
+    return brokenLinks;
+  }
+}
+```
+
+## Best Practices
+
+### Check for Null
+
+```typescript
+// ✅ Good
+const cache = this.app.metadataCache.getCache(file.path);
+if (cache?.frontmatter) {
+  const title = cache.frontmatter.title;
+}
+
+// ❌ Bad
+const cache = this.app.metadataCache.getCache(file.path);
+const title = cache.frontmatter.title; // May throw!
+```
+
+### Use Optional Chaining
+
+```typescript
+// ✅ Good
+const tags = cache?.tags?.map(t => t.tag) || [];
+const headings = cache?.headings?.filter(h => h.level === 1) || [];
+
+// ❌ Bad
+const tags = cache.tags.map(t => t.tag); // May throw!
+```
+
+### Cache Results
+
+```typescript
+// ✅ Good - cache results
+class MyPlugin extends Plugin {
+  private cachedData = new Map<string, ProcessedData>();
+
+  async onload() {
+    this.registerEvent(
+      this.app.metadataCache.onChanged((file, data, cache) => {
+        this.cachedData.set(file.path, this.process(cache));
+      })
+    );
+  }
+}
+
+// ❌ Bad - recalculate every time
+getData(file: TFile) {
+  const cache = this.app.metadataCache.getCache(file.path);
+  return this.expensiveProcess(cache); // Recalculated!
+}
+```
+
+## Related
+
+- [Workspace](/plugins/workspace) - File operations
+- [Events](/plugins/events) - Event system
+- [App Interface](/plugins/app-interface) - MetadataCache access

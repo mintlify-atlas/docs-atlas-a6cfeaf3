@@ -1,0 +1,463 @@
+---
+title: CSS Variables Reference
+description: Complete list of all CSS variables used in Inkdown themes
+---
+
+This is a comprehensive reference of all CSS variables you can customize in your theme.
+
+## Background Colors
+
+These variables control the background colors throughout the application.
+
+```css
+.theme-dark {
+  --bg-primary: #161618;      /* Main background */
+  --bg-secondary: #1C1C1E;    /* Secondary surfaces */
+  --bg-sidebar: #161618;      /* Sidebar background */
+  --bg-tertiary: #2C2C2E;     /* Tertiary surfaces */
+}
+```
+
+| Variable | Usage | Example Value (Dark) | Example Value (Light) |
+|----------|-------|---------------------|----------------------|
+| `--bg-primary` | Main editor background | `#161618` | `#ffffff` |
+| `--bg-secondary` | Secondary panels, cards | `#1C1C1E` | `#f6f8fa` |
+| `--bg-sidebar` | Sidebar/file tree | `#161618` | `#fafbfc` |
+| `--bg-tertiary` | Hover states, tertiary UI | `#2C2C2E` | `#eaeef2` |
+
+## Text Colors
+
+```css
+.theme-dark {
+  --text-primary: #e0e0e0;    /* Primary text */
+  --text-secondary: #a0a0a0;  /* Secondary text */
+  --text-muted: #707070;      /* Muted/disabled text */
+}
+```
+
+| Variable | Usage | Example Value (Dark) | Example Value (Light) |
+|----------|-------|---------------------|----------------------|
+| `--text-primary` | Main text content | `#e0e0e0` | `#24292f` |
+| `--text-secondary` | Less important text | `#a0a0a0` | `#57606a` |
+| `--text-muted` | Disabled or subtle text | `#707070` | `#8c959f` |
+
+## Border Colors
+
+```css
+.theme-dark {
+  --border-color: rgba(255, 255, 255, 0.08);      /* Primary borders */
+  --border-secondary: rgba(255, 255, 255, 0.04);  /* Subtle borders */
+}
+```
+
+## Primary/Accent Colors
+
+```css
+.theme-dark {
+  --color-primary: #007acc;        /* Primary brand color */
+  --color-primary-hover: #005a9e;  /* Hover state */
+}
+```
+
+These colors are used for:
+- Interactive elements (buttons, links)
+- Active states
+- Focus indicators
+- Primary actions
+
+## Editor Variables
+
+Controls the code editor appearance:
+
+```css
+.theme-dark {
+  --editor-bg: #161618;                   /* Editor background */
+  --editor-fg: #e0e0e0;                   /* Editor text color */
+  --editor-selection: rgba(0, 122, 204, 0.4);  /* Selected text */
+  --editor-cursor: var(--color-primary);  /* Cursor color */
+  --editor-active-line: #2a2a2a;         /* Active line highlight */
+  --editor-line-number: #5a5a5a;         /* Line numbers */
+  --editor-scrollbar: #5a5a5a;           /* Scrollbar */
+}
+```
+
+| Variable | Usage |
+|----------|-------|
+| `--editor-bg` | Editor background color |
+| `--editor-fg` | Editor foreground (text) color |
+| `--editor-selection` | Background color of selected text |
+| `--editor-cursor` | Cursor/caret color |
+| `--editor-active-line` | Background of current line |
+| `--editor-line-number` | Line number color |
+| `--editor-scrollbar` | Scrollbar thumb color |
+
+## Heading Colors
+
+Each heading level can have its own color:
+
+```css
+.theme-dark {
+  --heading-h1: #569cd6;  /* H1 headings */
+  --heading-h2: #4ec9b0;  /* H2 headings */
+  --heading-h3: #9cdcfe;  /* H3 headings */
+  --heading-h4: #dcdcaa;  /* H4 headings */
+  --heading-h5: #c586c0;  /* H5 headings */
+  --heading-h6: #ce9178;  /* H6 headings */
+}
+```
+
+## Font Weights
+
+Control the weight of different markdown elements:
+
+```css
+.theme-dark {
+  --font-weight-normal: 500;
+  --font-weight-heading: 800;
+  --font-weight-bold: 700;
+  --font-weight-italic: 400;
+  --font-weight-link: 400;
+  --font-weight-code: 400;
+  --font-weight-code-block: 500;
+  --font-weight-quote: 400;
+  --font-weight-list: 400;
+}
+```
+
+## Markdown Syntax Colors
+
+Colors for markdown syntax elements:
+
+```css
+.theme-dark {
+  --syntax-header: #569cd6;        /* Header markers (#, ##, etc) */
+  --syntax-bold: #f48771;          /* Bold text */
+  --syntax-strong: #f48771;        /* Strong emphasis */
+  --syntax-italic: #4ec9b0;        /* Italic text */
+  --syntax-emphasis: #4ec9b0;      /* Emphasis */
+  --syntax-strikethrough: #808080; /* Strikethrough text */
+  --syntax-link: #3794ff;          /* Link text */
+  --syntax-url: #3794ff;           /* URLs */
+  --syntax-code: #c586c0;          /* Inline code */
+  --syntax-monospace: #c586c0;     /* Monospace text */
+  --syntax-quote: #858585;         /* Blockquote text */
+  --syntax-list: #e0e0e0;          /* List markers */
+  --syntax-separator: #5a5a5a;     /* Horizontal rules */
+}
+```
+
+## Code Block Syntax Highlighting
+
+Colors for syntax highlighting in code blocks:
+
+```css
+.theme-dark {
+  --code-bg: #0d1117;           /* Code block background */
+  --code-text: #e6edf3;         /* Default text color */
+  --code-keyword: #ff7b72;      /* Keywords (if, function, class) */
+  --code-string: #a5d6ff;       /* String literals */
+  --code-comment: #8b949e;      /* Comments */
+  --code-function: #d2a8ff;     /* Function names */
+  --code-number: #79c0ff;       /* Numbers */
+  --code-operator: #ff7b72;     /* Operators (+, -, *, /) */
+  --code-atom: #79c0ff;         /* Special values (true, false, null) */
+  --code-bool: #79c0ff;         /* Boolean values */
+  --code-regexp: #a5d6ff;       /* Regular expressions */
+  --code-meta: #ffa657;         /* Meta information */
+  --code-punctuation: #e0e0e0;  /* Punctuation */
+}
+```
+
+## CodeMirror Editor Tokens
+
+These variables control syntax highlighting in the editor:
+
+```css
+.theme-dark {
+  /* Code elements */
+  --cm-comment: #8b949e;
+  --cm-keyword: #ff7b72;
+  --cm-string: #a5d6ff;
+  --cm-number: #79c0ff;
+  --cm-operator: #ff7b72;
+  --cm-punctuation: #e0e0e0;
+  --cm-function: #d2a8ff;
+  --cm-property: #79c0ff;
+  --cm-variable: #e6edf3;
+  --cm-type: #ffa657;
+  --cm-tag: #7ee787;
+  --cm-attribute: #79c0ff;
+  --cm-bool: #79c0ff;
+  --cm-null: #ff7b72;
+  --cm-regexp: #a5d6ff;
+  --cm-meta: #ffa657;
+
+  /* Markdown-specific elements */
+  --cm-heading-marker: #8b949e;      /* # symbols */
+  --cm-list-marker: #7aa2f7;         /* List bullets/numbers */
+  --cm-quote-marker: #9ece6a;        /* > quote markers */
+  --cm-link-bracket: #8b949e;        /* Link brackets [] () */
+  --cm-link-text: #79c0ff;           /* Link text */
+  --cm-link: #7dcfff;                /* Links */
+  --cm-link-hover: #b4f9f8;          /* Link hover */
+  --cm-link-url: #a5d6ff;            /* URLs in links */
+  --cm-code-marker: #8b949e;         /* Backticks for code */
+  --cm-emphasis-marker: #8b949e;     /* * for italic */
+  --cm-strong-marker: #8b949e;       /* ** for bold */
+  --cm-highlight-marker: #8b949e;    /* == for highlight */
+  --cm-strikethrough-marker: #8b949e; /* ~~ for strikethrough */
+}
+```
+
+## Highlight Colors
+
+```css
+.theme-dark {
+  --text-highlight-bg: rgba(255, 208, 0, 0.4);        /* Highlight background */
+  --text-highlight-bg-active: rgba(255, 208, 0, 0.5); /* Active highlight */
+}
+```
+
+## Callout/Alert Colors
+
+Each callout type has four variables (background, border, title, icon):
+
+```css
+.theme-dark {
+  /* Note (blue) */
+  --callout-note-bg: rgba(79, 161, 245, 0.1);
+  --callout-note-border: #4fa1f5;
+  --callout-note-title: #4fa1f5;
+  --callout-note-icon: #4fa1f5;
+  --callout-note-content: var(--text-primary);
+
+  /* Tip (green) */
+  --callout-tip-bg: rgba(50, 215, 75, 0.1);
+  --callout-tip-border: #32d74b;
+  --callout-tip-title: #32d74b;
+  --callout-tip-icon: #32d74b;
+  --callout-tip-content: var(--text-primary);
+
+  /* Important (purple) */
+  --callout-important-bg: rgba(191, 90, 242, 0.1);
+  --callout-important-border: #bf5af2;
+  --callout-important-title: #bf5af2;
+  --callout-important-icon: #bf5af2;
+  --callout-important-content: var(--text-primary);
+
+  /* Warning (orange) */
+  --callout-warning-bg: rgba(255, 159, 10, 0.1);
+  --callout-warning-border: #ff9f0a;
+  --callout-warning-title: #ff9f0a;
+  --callout-warning-icon: #ff9f0a;
+  --callout-warning-content: var(--text-primary);
+
+  /* Caution (red) */
+  --callout-caution-bg: rgba(255, 69, 58, 0.1);
+  --callout-caution-border: #ff453a;
+  --callout-caution-title: #ff453a;
+  --callout-caution-icon: #ff453a;
+  --callout-caution-content: var(--text-primary);
+}
+```
+
+## Table Colors
+
+```css
+.theme-dark {
+  --table-bg: var(--bg-primary);              /* Table background */
+  --table-header-bg: rgba(139, 148, 158, 0.1); /* Header row */
+  --table-header-text: var(--text-primary);   /* Header text */
+  --table-cell-text: var(--text-primary);     /* Cell text */
+  --table-border: rgba(139, 148, 158, 0.3);   /* Borders */
+  --table-row-hover: rgba(139, 148, 158, 0.05); /* Row hover */
+}
+```
+
+## Diff View Colors
+
+```css
+.theme-dark {
+  --diff-added-bg: rgba(34, 197, 94, 0.1);     /* Added lines background */
+  --diff-added-border: #22c55e;                 /* Added lines border */
+  --diff-added-indicator: #22c55e;              /* + indicator */
+  --diff-removed-bg: rgba(239, 68, 68, 0.1);   /* Removed lines background */
+  --diff-removed-border: #ef4444;               /* Removed lines border */
+  --diff-removed-indicator: #ef4444;            /* - indicator */
+}
+```
+
+## UI Element Colors
+
+### Buttons
+
+```css
+.theme-dark {
+  --button-primary-bg: var(--color-primary);
+  --button-primary-text: #ffffff;
+  --button-secondary-bg: #2d2d2d;
+  --button-secondary-text: var(--text-primary);
+}
+```
+
+### Tabs
+
+```css
+.theme-dark {
+  --tab-bg: transparent;
+  --tab-bg-active: var(--bg-primary);
+  --tab-border-active: var(--color-primary);
+}
+```
+
+### Inputs
+
+```css
+.theme-dark {
+  --input-bg: #2d2d2d;
+  --input-border: #3e3e3e;
+  --input-focus-border: var(--color-primary);
+}
+```
+
+### Shadows
+
+```css
+.theme-dark {
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+```
+
+## Notice/Toast System
+
+```css
+.theme-dark {
+  --background-modifier-message: rgba(45, 45, 45, 0.95);
+  --background-modifier-success: rgba(46, 125, 50, 0.95);
+  --background-modifier-error: rgba(211, 47, 47, 0.95);
+}
+```
+
+## Interactive Modifiers
+
+```css
+.theme-dark {
+  --interactive-accent: var(--color-primary);
+  --interactive-accent-hover: var(--color-primary-hover);
+  --background-modifier-border: rgba(0, 0, 0, 0.06);
+  --background-modifier-hover: rgba(255, 255, 255, 0.05);
+  --background-modifier-active-hover: rgba(255, 255, 255, 0.1);
+}
+```
+
+## Shared Constants (Cannot be customized per-theme)
+
+These variables are the same for all themes but can be overridden in custom themes:
+
+### Font Families
+
+```css
+:root {
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-editor: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+}
+```
+
+### Font Sizes
+
+```css
+:root {
+  --font-size-base: 14px;
+  --font-size-editor: 14px;
+  --line-height-base: 1.6;
+
+  --font-size-xs: 0.786em;   /* ~11px */
+  --font-size-sm: 0.857em;   /* ~12px */
+  --font-size-md: 0.929em;   /* ~13px */
+  --font-size-lg: 1.143em;   /* ~16px */
+  --font-size-xl: 1.429em;   /* ~20px */
+  --font-size-2xl: 1.714em;  /* ~24px */
+}
+```
+
+### Spacing
+
+```css
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}
+```
+
+### Border Radius
+
+```css
+:root {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+```
+
+### Heading Sizes
+
+```css
+:root {
+  --heading-h1-size: 2em;
+  --heading-h2-size: 1.6em;
+  --heading-h3-size: 1.4em;
+  --heading-h4-size: 1.2em;
+  --heading-h5-size: 1.1em;
+  --heading-h6-size: 1em;
+  --heading-line-height: 1.3;
+}
+```
+
+### Code Sizing
+
+```css
+:root {
+  --code-font-size: 0.9em;
+  --code-block-font-size: 0.9em;
+  --code-padding: 2px 6px;
+  --code-border-radius: 4px;
+  --code-block-border-radius: 8px;
+}
+```
+
+## Usage Examples
+
+### Minimal Theme (Override Essentials Only)
+
+```css
+.theme-dark {
+  /* Only change what you need */
+  --bg-primary: #1a1a1a;
+  --text-primary: #e0e0e0;
+  --color-primary: #00d4ff;
+  --heading-h1: var(--color-primary);
+  --heading-h2: #ff6b6b;
+  --syntax-link: var(--color-primary);
+}
+```
+
+### Complete Theme
+
+For a production theme, define all color variables. See the [quickstart guide](/themes/quickstart) for a complete example.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/themes/quickstart">
+    Create your first theme
+  </Card>
+  <Card title="Best Practices" icon="star" href="/themes/best-practices">
+    Tips for great theme development
+  </Card>
+</CardGroup>

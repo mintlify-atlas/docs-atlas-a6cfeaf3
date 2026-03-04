@@ -1,0 +1,449 @@
+---
+title: Color Schemes
+description: Light and dark mode implementation in Inkdown themes
+---
+
+Inkdown supports both light and dark color schemes, with seamless switching between modes.
+
+## Color Scheme Types
+
+Themes can support one or both color schemes:
+
+### Dark Mode Only
+
+For themes designed exclusively for low-light environments:
+
+```json
+{
+  "name": "My Dark Theme",
+  "modes": ["dark"]
+}
+```
+
+Provide only `dark.css` in your theme directory.
+
+### Light Mode Only
+
+For themes optimized for bright environments:
+
+```json
+{
+  "name": "My Light Theme",
+  "modes": ["light"]
+}
+```
+
+Provide only `light.css` in your theme directory.
+
+### Dual Mode
+
+For themes that support both schemes:
+
+```json
+{
+  "name": "My Universal Theme",
+  "modes": ["dark", "light"]
+}
+```
+
+Provide both `dark.css` and `light.css` in your theme directory.
+
+## Switching Color Schemes
+
+### Programmatically
+
+```typescript
+// Switch to dark mode
+await app.themeManager.setColorScheme('dark');
+
+// Switch to light mode
+await app.themeManager.setColorScheme('light');
+
+// Get current scheme
+const scheme = app.themeManager.getColorScheme(); // 'dark' | 'light'
+```
+
+**Source**: `packages/core/src/ThemeManager.ts:169-192`
+
+### User Interface
+
+Users can switch between light and dark modes in:
+
+1. **Settings → Appearance → Theme**: Select theme and color scheme
+2. **Command palette**: Search for "color scheme" or "dark mode"
+3. **Keyboard shortcut** (if configured)
+
+## Implementation Details
+
+### Theme Switching Logic
+
+When a user switches color schemes:
+
+```typescript
+async setColorScheme(scheme: ColorScheme): Promise<void> {
+    const currentThemeConfig = this.availableThemes.get(this.currentTheme);
+    const modes = currentThemeConfig?.modes || ['dark'];
+
+    // If current theme supports the new scheme, just update it
+    if (currentThemeConfig && modes.includes(scheme)) {
+        this.colorScheme = scheme;
+    } else {
+        // Switch to default theme for this scheme
+        const themeName = scheme === 'dark' ? 'default-dark' : 'default-light';
+        this.currentTheme = themeName;
+        this.colorScheme = scheme;
+    }
+
+    // Save to config
+    const config = await this.app.configManager.loadConfig<any>('app');
+    if (config) {
+        config.colorScheme = scheme;
+        config.theme = this.currentTheme;
+        await this.app.configManager.saveConfig('app', config);
+    }
+
+    // Emit theme change event
+    await this.emitThemeChange();
+}
+```
+
+**Source**: `packages/core/src/ThemeManager.ts:169-192`
+
+### CSS Application
+
+#### Built-in Themes
+
+Built-in themes use CSS classes:
+
+```typescript
+// Switch CSS class on document root
+document.documentElement.className = scheme === 'dark' 
+    ? 'theme-dark' 
+    : 'theme-light';
+```
+
+This is instant because both themes are pre-loaded in the app bundle.
+
+#### Custom Themes
+
+Custom themes load the appropriate CSS file:
+
+```typescript
+const cssFile = `${colorScheme}.css`; // 'dark.css' or 'light.css'
+const cssContent = await native.fs.readThemeCss(themeId, cssFile);
+applyCustomThemeCSS(cssContent);
+```
+
+**Source**: `packages/core/src/ThemeManager.ts:241-252`
+
+## Creating Dual-Mode Themes
+
+### Strategy 1: Maintain Separate Files
+
+Create completely separate CSS files for each mode:
+
+```
+my-theme/
+├── manifest.json
+├── dark.css      # Complete dark theme
+└── light.css     # Complete light theme
+```
+
+**Pros**:
+- Complete flexibility per mode
+- Easy to test each mode independently
+- Clear separation of concerns
+
+**Cons**:
+- More code duplication
+- Need to maintain consistency manually
+
+### Strategy 2: Use Variable References
+
+Define semantic variables that reference different colors per mode:
+
+**dark.css**:
+```css
+.theme-dark {
+  /* Base colors */
+  --color-surface: #1a1a1a;
+  --color-on-surface: #e0e0e0;
+  
+  /* Apply to components */
+  --bg-primary: var(--color-surface);
+  --text-primary: var(--color-on-surface);
+  --editor-bg: var(--color-surface);
+  --editor-fg: var(--color-on-surface);
+}
+```
+
+**light.css**:
+```css
+.theme-light {
+  /* Base colors */
+  --color-surface: #ffffff;
+  --color-on-surface: #24292f;
+  
+  /* Apply to components (same structure) */
+  --bg-primary: var(--color-surface);
+  --text-primary: var(--color-on-surface);
+  --editor-bg: var(--color-surface);
+  --editor-fg: var(--color-on-surface);
+}
+```
+
+**Pros**:
+- Maintains consistent structure
+- Easy to see color relationships
+- Reduces duplication
+
+**Cons**:
+- Less flexibility for mode-specific customization
+- Can be harder to understand at first
+
+### Strategy 3: Shared Base with Mode Overrides
+
+Create a shared base and only override what differs:
+
+**dark.css**:
+```css
+.theme-dark {
+  /* Colors that differ between modes */
+  --bg-primary: #1a1a1a;
+  --text-primary: #e0e0e0;
+  --border-color: rgba(255, 255, 255, 0.08);
+  
+  /* Accent colors (might be the same) */
+  --color-primary: #0969da;
+  --color-success: #2ea043;
+  --color-danger: #cf222e;
+  
+  /* Everything else inherits shared values */
+}
+```
+
+**light.css**:
+```css
+.theme-light {
+  /* Only override what changes */
+  --bg-primary: #ffffff;
+  --text-primary: #24292f;
+  --border-color: rgba(0, 0, 0, 0.06);
+  
+  /* Accent colors (same as dark mode) */
+  --color-primary: #0969da;
+  --color-success: #2ea043;
+  --color-danger: #cf222e;
+}
+```
+
+## Best Practices
+
+### 1. Test Both Modes
+
+If you support both light and dark modes, test thoroughly in both:
+
+```bash
+# Test dark mode
+inkdown --theme my-theme --scheme dark
+
+# Test light mode
+inkdown --theme my-theme --scheme light
+```
+
+### 2. Maintain Consistent Contrast
+
+Ensure text remains readable in both modes:
+
+- **Dark mode**: Light text on dark backgrounds (contrast ratio ≥ 4.5:1)
+- **Light mode**: Dark text on light backgrounds (contrast ratio ≥ 4.5:1)
+
+Use contrast checking tools:
+- [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)
+- [Coolors Contrast Checker](https://coolors.co/contrast-checker)
+
+### 3. Consider Semantic Naming
+
+Name colors by their purpose, not their appearance:
+
+```css
+/* ✅ Good - semantic names */
+--color-danger: #ff0000;
+--color-success: #00ff00;
+--bg-elevated: #2a2a2a;
+
+/* ❌ Bad - appearance-based names */
+--color-red: #ff0000;
+--color-green: #00ff00;
+--bg-slightly-lighter: #2a2a2a;
+```
+
+This makes it easier to create both light and dark versions.
+
+### 4. Reuse Accent Colors
+
+Accent colors (primary, success, warning, danger) often work in both modes:
+
+```css
+/* Both modes */
+.theme-dark,
+.theme-light {
+  --color-primary: #0969da;
+  --color-success: #2ea043;
+  --color-warning: #fb8500;
+  --color-danger: #cf222e;
+}
+```
+
+Only adjust if contrast requirements demand it.
+
+### 5. Test with Real Content
+
+Create test documents that include:
+- All heading levels
+- Bold, italic, strikethrough
+- Links and images
+- Code blocks with syntax highlighting
+- Lists (ordered and unordered)
+- Blockquotes
+- Tables
+- Callouts (all types)
+
+### 6. Pay Attention to Borders
+
+Borders need different approaches in light vs dark:
+
+```css
+/* Dark mode - lighter borders */
+.theme-dark {
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Light mode - darker borders */
+.theme-light {
+  --border-color: rgba(0, 0, 0, 0.06);
+}
+```
+
+### 7. Consider Syntax Highlighting
+
+Syntax colors may need adjustment between modes:
+
+```css
+/* Dark mode - vibrant colors work well */
+.theme-dark {
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-comment: #8b949e;
+}
+
+/* Light mode - more muted colors */
+.theme-light {
+  --code-keyword: #cf222e;
+  --code-string: #0a3069;
+  --code-comment: #6e7781;
+}
+```
+
+## Automatic System Theme Matching
+
+Inkdown can automatically match the system's color scheme preference:
+
+```typescript
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    const systemPrefersDark = e.matches;
+    app.themeManager.setColorScheme(systemPrefersDark ? 'dark' : 'light');
+});
+```
+
+<Note>
+  This feature is typically configured in Settings → Appearance → "Match system theme"
+</Note>
+
+## Examples from Built-in Themes
+
+### Background Color Inversion
+
+```css
+/* Dark theme */
+.theme-dark {
+  --bg-primary: #161618;   /* Very dark */
+  --text-primary: #e0e0e0; /* Very light */
+}
+
+/* Light theme */
+.theme-light {
+  --bg-primary: #ffffff;   /* Very light */
+  --text-primary: #24292f; /* Very dark */
+}
+```
+
+### Heading Color Adjustments
+
+```css
+/* Dark theme - brighter, more saturated */
+.theme-dark {
+  --heading-h1: #569cd6;  /* Bright blue */
+  --heading-h2: #4ec9b0;  /* Bright teal */
+}
+
+/* Light theme - darker, less saturated */
+.theme-light {
+  --heading-h1: #0969da;  /* Deep blue */
+  --heading-h2: #1a7f37;  /* Deep green */
+}
+```
+
+### Selection Colors
+
+```css
+/* Dark theme - use alpha for glow effect */
+.theme-dark {
+  --editor-selection: rgba(0, 122, 204, 0.4);
+}
+
+/* Light theme - lighter alpha for subtlety */
+.theme-light {
+  --editor-selection: rgba(9, 105, 218, 0.2);
+}
+```
+
+## Troubleshooting
+
+### Theme doesn't switch properly
+
+**Problem**: Switching color schemes doesn't change the appearance.
+
+**Solutions**:
+1. Check that your theme's `manifest.json` includes both modes: `"modes": ["dark", "light"]`
+2. Ensure both `dark.css` and `light.css` exist in your theme directory
+3. Verify CSS files use the correct class selector (`.theme-dark` or `.theme-light`)
+4. Reload custom themes in Settings
+
+### Colors look wrong in one mode
+
+**Problem**: Theme looks good in dark mode but terrible in light mode (or vice versa).
+
+**Solutions**:
+1. Check contrast ratios for all text/background combinations
+2. Ensure borders are visible against backgrounds
+3. Test syntax highlighting with real code
+4. Review callout colors for readability
+
+### Theme persists after switching
+
+**Problem**: Switching to a different theme doesn't clear custom CSS.
+
+**Solution**: This is a bug. The ThemeManager should remove custom theme CSS when switching to built-in themes. Report this issue.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CSS Variables" icon="palette" href="/themes/css-variables">
+    Complete list of all theme variables
+  </Card>
+  <Card title="Best Practices" icon="star" href="/themes/best-practices">
+    Tips for creating great themes
+  </Card>
+</CardGroup>

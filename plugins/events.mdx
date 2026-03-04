@@ -1,0 +1,538 @@
+---
+title: Events
+description: Event system and listeners
+---
+
+## Overview
+
+Inkdown uses an event system to notify plugins of changes and user actions. Subscribe to events to react to file changes, editor updates, and more.
+
+```typescript
+// Subscribe to file creation
+this.registerEvent(
+  this.app.workspace.onFileCreate((file) => {
+    console.log('File created:', file.path);
+  })
+);
+```
+
+## Events Base Class
+
+Many Inkdown managers extend the `Events` class.
+
+```typescript
+abstract class Events {
+  on(name: string, callback: (...data: unknown[]) => void, ctx?: unknown): EventRef;
+  off(name: string, callback: (...data: unknown[]) => void): void;
+  offref(ref: EventRef): void;
+  trigger(name: string, ...data: unknown[]): void;
+}
+
+type EventRef = () => void;
+```
+
+## Registration
+
+### Using Plugin.registerEvent()
+
+<ResponseField name="registerEvent" type="(eventRef: EventRef) => void">
+  Register an event listener that's automatically cleaned up when the plugin unloads.
+</ResponseField>
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async onload() {
+    // Automatic cleanup
+    this.registerEvent(
+      this.app.workspace.onFileCreate((file) => {
+        console.log('File created:', file.path);
+      })
+    );
+  }
+}
+```
+
+<Note>
+Always use `registerEvent()` to ensure listeners are cleaned up when your plugin unloads.
+</Note>
+
+### Manual Event Handling
+
+If you need to manually manage events:
+
+```typescript
+const eventRef = this.app.workspace.onFileCreate((file) => {
+  console.log('File created:', file.path);
+});
+
+// Later, to unsubscribe:
+eventRef();
+```
+
+## Workspace Events
+
+### onFileCreate()
+
+<ParamField path="onFileCreate" type="(callback: (file: TFile) => void) => EventRef">
+  Fired when a file is created.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileCreate((file) => {
+    console.log('New file:', file.path);
+    this.showNotice(`Created: ${file.basename}`);
+    
+    // Initialize file with template
+    if (file.extension === 'md') {
+      this.initializeFile(file);
+    }
+  })
+);
+```
+
+### onFileModify()
+
+<ParamField path="onFileModify" type="(callback: (file: TFile) => void) => EventRef">
+  Fired when a file is modified.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileModify((file) => {
+    console.log('File modified:', file.path);
+    
+    // Update cache
+    this.invalidateCache(file.path);
+    
+    // Auto-save after modification
+    this.scheduleAutoSave(file);
+  })
+);
+```
+
+### onFileDelete()
+
+<ParamField path="onFileDelete" type="(callback: (file: TAbstractFile) => void) => EventRef">
+  Fired when a file or folder is deleted.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileDelete((file) => {
+    console.log('Deleted:', file.path);
+    
+    // Clean up references
+    this.removeFromIndex(file.path);
+    
+    // Update UI
+    this.refreshView();
+  })
+);
+```
+
+### onFileRename()
+
+<ParamField path="onFileRename" type="(callback: (file: TFile, oldPath: string) => void) => EventRef">
+  Fired when a file is renamed or moved.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspace.onFileRename((file, oldPath) => {
+    console.log(`Renamed: ${oldPath} -> ${file.path}`);
+    
+    // Update links
+    this.updateLinks(oldPath, file.path);
+    
+    // Update bookmarks
+    this.updateBookmarks(oldPath, file.path);
+  })
+);
+```
+
+## Workspace UI Events
+
+### onActiveFileChange()
+
+<ParamField path="onActiveFileChange" type="(callback: (file: TFile | null) => void) => EventRef">
+  Fired when the active file changes.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspaceUI.onActiveFileChange((file) => {
+    if (file) {
+      console.log('Active file:', file.path);
+      this.updateStatusBar(file);
+    } else {
+      console.log('No active file');
+      this.clearStatusBar();
+    }
+  })
+);
+```
+
+### onFileOpen()
+
+<ParamField path="onFileOpen" type="(callback: (file: TFile) => void) => EventRef">
+  Fired when a file is opened.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.workspaceUI.onFileOpen((file) => {
+    console.log('File opened:', file.path);
+    this.addToRecentFiles(file.path);
+    this.preloadRelatedFiles(file);
+  })
+);
+```
+
+## Metadata Cache Events
+
+### onChanged()
+
+<ParamField path="onChanged" type="(callback: (file: TFile, data: string, cache: CachedMetadata) => void) => EventRef">
+  Fired when file metadata is updated.
+</ParamField>
+
+```typescript
+this.registerEvent(
+  this.app.metadataCache.onChanged((file, data, cache) => {
+    console.log('Metadata updated:', file.path);
+    console.log('Frontmatter:', cache.frontmatter);
+    console.log('Links:', cache.links);
+    console.log('Tags:', cache.tags);
+    
+    // Update search index
+    this.updateSearchIndex(file, cache);
+  })
+);
+```
+
+## Manager Events
+
+Managers like `BookmarkManager` and `TagManager` emit generic events:
+
+### BookmarkManager
+
+```typescript
+this.registerEvent(
+  this.app.bookmarkManager.on('change', () => {
+    console.log('Bookmarks changed');
+    this.refreshBookmarkView();
+  })
+);
+```
+
+### TagManager
+
+```typescript
+this.registerEvent(
+  this.app.tagManager.on('change', () => {
+    console.log('Tags changed');
+    this.refreshTagView();
+  })
+);
+```
+
+### Plugin Manager (via Plugins)
+
+```typescript
+const unsubscribe = this.app.plugins.onPluginChange(
+  (pluginId, changeType) => {
+    console.log(`${pluginId}: ${changeType}`);
+    
+    if (changeType === 'enabled') {
+      console.log(`${pluginId} was enabled`);
+    } else if (changeType === 'disabled') {
+      console.log(`${pluginId} was disabled`);
+    } else if (changeType === 'settings-changed') {
+      console.log(`${pluginId} settings changed`);
+    }
+  }
+);
+
+// Manual cleanup (if not using registerEvent)
+// unsubscribe();
+```
+
+## DOM Events
+
+### registerDomEvent()
+
+<ParamField path="registerDomEvent" type="(el: HTMLElement, type: string, callback: Function) => void">
+  Register DOM event listeners with automatic cleanup.
+</ParamField>
+
+```typescript
+const button = document.createElement('button');
+button.textContent = 'Click Me';
+
+this.registerDomEvent(button, 'click', (evt: MouseEvent) => {
+  console.log('Button clicked');
+  this.showNotice('Button clicked!');
+});
+
+// Window events
+this.registerDomEvent(window, 'resize', () => {
+  console.log('Window resized');
+  this.updateLayout();
+});
+
+// Document events
+this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
+  if (evt.key === 'Escape') {
+    this.closeModal();
+  }
+});
+```
+
+## Intervals and Timers
+
+### registerInterval()
+
+<ResponseField name="registerInterval" type="(id: number) => number">
+  Register an interval for automatic cleanup.
+</ResponseField>
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async onload() {
+    // Auto-save every 30 seconds
+    this.registerInterval(
+      window.setInterval(() => {
+        this.autoSave();
+      }, 30000)
+    );
+    
+    // Update status bar every second
+    this.registerInterval(
+      window.setInterval(() => {
+        this.updateStatusBar();
+      }, 1000)
+    );
+  }
+}
+```
+
+## Common Patterns
+
+### Track File Changes
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private modifiedFiles = new Set<string>();
+
+  async onload() {
+    this.registerEvent(
+      this.app.workspace.onFileModify((file) => {
+        this.modifiedFiles.add(file.path);
+      })
+    );
+
+    // Process modified files periodically
+    this.registerInterval(
+      window.setInterval(() => {
+        if (this.modifiedFiles.size > 0) {
+          this.processModifiedFiles(Array.from(this.modifiedFiles));
+          this.modifiedFiles.clear();
+        }
+      }, 5000)
+    );
+  }
+
+  async processModifiedFiles(paths: string[]) {
+    console.log('Processing modified files:', paths);
+    // Process files...
+  }
+}
+```
+
+### Debounce Events
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private saveTimeout: number | null = null;
+
+  async onload() {
+    this.registerEvent(
+      this.app.workspace.onFileModify((file) => {
+        this.debouncedSave(file);
+      })
+    );
+  }
+
+  debouncedSave(file: TFile) {
+    if (this.saveTimeout !== null) {
+      clearTimeout(this.saveTimeout);
+    }
+
+    this.saveTimeout = window.setTimeout(() => {
+      this.performSave(file);
+      this.saveTimeout = null;
+    }, 2000);
+  }
+
+  async performSave(file: TFile) {
+    console.log('Saving:', file.path);
+    // Perform save...
+  }
+}
+```
+
+### React to Active File
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private currentFile: TFile | null = null;
+
+  async onload() {
+    this.registerEvent(
+      this.app.workspaceUI.onActiveFileChange((file) => {
+        this.onActiveFileChange(file);
+      })
+    );
+  }
+
+  onActiveFileChange(file: TFile | null) {
+    // Clean up previous file
+    if (this.currentFile) {
+      this.cleanupFile(this.currentFile);
+    }
+
+    // Set up new file
+    this.currentFile = file;
+    if (file) {
+      this.setupFile(file);
+    }
+  }
+
+  setupFile(file: TFile) {
+    console.log('Setting up:', file.path);
+    // Initialize for this file
+  }
+
+  cleanupFile(file: TFile) {
+    console.log('Cleaning up:', file.path);
+    // Clean up resources
+  }
+}
+```
+
+### Update on Metadata Changes
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private cache = new Map<string, CachedMetadata>();
+
+  async onload() {
+    this.registerEvent(
+      this.app.metadataCache.onChanged((file, data, cache) => {
+        this.cache.set(file.path, cache);
+        this.updateView(file, cache);
+      })
+    );
+  }
+
+  updateView(file: TFile, cache: CachedMetadata) {
+    // Check for specific changes
+    if (cache.frontmatter?.status === 'published') {
+      this.showNotice(`${file.basename} is published`);
+    }
+
+    // Update based on tags
+    if (cache.tags?.some(t => t.tag === '#important')) {
+      this.addToImportantList(file);
+    }
+  }
+}
+```
+
+## Best Practices
+
+### Always Use registerEvent()
+
+```typescript
+// ✅ Good - automatic cleanup
+this.registerEvent(
+  this.app.workspace.onFileCreate((file) => {
+    console.log('Created:', file.path);
+  })
+);
+
+// ❌ Bad - manual cleanup required
+const ref = this.app.workspace.onFileCreate((file) => {
+  console.log('Created:', file.path);
+});
+// Must remember to call ref() in onunload!
+```
+
+### Handle Null Values
+
+```typescript
+// ✅ Good
+this.registerEvent(
+  this.app.workspaceUI.onActiveFileChange((file) => {
+    if (file) {
+      this.updateForFile(file);
+    } else {
+      this.clearView();
+    }
+  })
+);
+
+// ❌ Bad - assumes file exists
+this.registerEvent(
+  this.app.workspaceUI.onActiveFileChange((file) => {
+    this.updateForFile(file); // May be null!
+  })
+);
+```
+
+### Avoid Heavy Operations in Event Handlers
+
+```typescript
+// ✅ Good - debounce heavy operations
+private updateTimeout: number | null = null;
+
+this.registerEvent(
+  this.app.workspace.onFileModify((file) => {
+    if (this.updateTimeout) clearTimeout(this.updateTimeout);
+    this.updateTimeout = window.setTimeout(() => {
+      this.heavyOperation(file);
+    }, 500);
+  })
+);
+
+// ❌ Bad - heavy operation on every change
+this.registerEvent(
+  this.app.workspace.onFileModify((file) => {
+    this.heavyOperation(file); // Called too often!
+  })
+);
+```
+
+### Clean Up Intervals
+
+```typescript
+// ✅ Good - use registerInterval
+this.registerInterval(
+  window.setInterval(() => {
+    this.update();
+  }, 1000)
+);
+
+// ❌ Bad - manual cleanup needed
+const interval = window.setInterval(() => {
+  this.update();
+}, 1000);
+// Must clear in onunload!
+```
+
+## Related
+
+- [Workspace](/plugins/workspace) - File events
+- [Metadata Cache](/plugins/metadata-cache) - Metadata events
+- [Plugin Class](/plugins/plugin-class) - Event registration

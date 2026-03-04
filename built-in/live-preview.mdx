@@ -1,0 +1,469 @@
+---
+title: Live Preview Plugin
+description: Real-time WYSIWYG markdown rendering while you edit
+---
+
+The Live Preview plugin transforms your markdown editor into a WYSIWYG experience by rendering markdown elements in real-time while you edit.
+
+## Overview
+
+Live Preview hides markdown syntax and displays formatted elements as you type. When you place your cursor inside an element, the syntax reappears so you can edit it.
+
+**Features**:
+- Bold (`**text**`) and italic (`*text*`) formatting
+- Headings with styled appearance and hidden markers
+- Clickable links with hidden URL syntax
+- Inline code with hidden backticks
+- Lists with styled markers
+- Blockquotes with hidden `>` markers
+- Images rendered inline
+- Tables with clean borders
+- Code blocks with syntax highlighting
+- Callouts with icons and styling
+- Selection-aware rendering (shows syntax when cursor is inside)
+- Viewport-based optimization for performance
+
+**Source**: `packages/plugins/src/live-preview/LivePreviewPlugin.ts:4-21`
+
+## Installation
+
+The Live Preview plugin is built-in and enabled by default.
+
+To toggle it:
+1. Open Settings → Plugins
+2. Find "Live Preview"
+3. Toggle the enable switch
+
+## How It Works
+
+### Architecture
+
+The Live Preview plugin uses CodeMirror decorations to transform markdown syntax:
+
+```typescript
+import { ViewPlugin, Decoration, type DecorationSet } from '@codemirror/view';
+import { createBoldDecorations } from './decorations/bold';
+import { createHeadingDecorations } from './decorations/heading';
+import { createLinkDecorations } from './decorations/link';
+// ... more decoration modules
+
+class LivePreviewView {
+    buildDecorations(view: EditorView): DecorationSet {
+        const allDecorations: DecorationRange[] = [];
+        
+        // Iterate through visible lines
+        for (const { from, to } of view.visibleRanges) {
+            let pos = from;
+            while (pos <= to) {
+                const line = view.state.doc.lineAt(pos);
+                
+                // Apply decorations for each element type
+                allDecorations.push(...createHeadingDecorations(view, line));
+                allDecorations.push(...createBoldDecorations(view, line));
+                allDecorations.push(...createLinkDecorations(view, line));
+                // ... more decorations
+                
+                pos = line.to + 1;
+            }
+        }
+        
+        return builder.finish();
+    }
+}
+```
+
+**Source**: `packages/plugins/src/live-preview/livePreviewExtension.ts:36-143`
+
+### Decoration Types
+
+The plugin implements decorations for:
+
+| Element | Source File | What It Does |
+|---------|-------------|-------------|
+| **Bold** | `decorations/bold.ts` | Hides `**` markers, applies bold styling |
+| **Italic** | `decorations/italic.ts` | Hides `*` or `_` markers, applies italic styling |
+| **Headings** | `decorations/heading.ts` | Hides `#` markers, applies heading colors and sizes |
+| **Links** | `decorations/link.ts` | Creates clickable widgets, hides URL syntax |
+| **Images** | `decorations/image.ts` | Renders images inline, hides syntax |
+| **Code** | `decorations/code.ts` | Hides backticks, styles inline code |
+| **Code Blocks** | `decorations/codeblock.ts` | Adds background, syntax highlighting |
+| **Lists** | `decorations/list.ts` | Styles bullets/numbers |
+| **Blockquotes** | `decorations/quote.ts` | Hides `>` markers, adds border |
+| **Strikethrough** | `decorations/strikethrough.ts` | Hides `~~` markers, adds strikethrough |
+| **Highlight** | `decorations/highlight.ts` | Hides `==` markers, adds highlight background |
+| **Horizontal Rules** | `decorations/hr.ts` | Renders visual line |
+| **Tables** | `decorations/table.ts` | Formats table with borders |
+| **Callouts** | `decorations/callout.ts` | Adds icons, colored borders |
+
+**Sources**: `packages/plugins/src/live-preview/decorations/`
+
+### Selection-Aware Rendering
+
+When you place your cursor inside an element, the syntax becomes visible:
+
+```typescript
+// Check if cursor overlaps with decoration range
+const selection = view.state.selection;
+let overlaps = false;
+
+for (const range of selection.ranges) {
+    if (range.from <= decorationEnd && range.to >= decorationStart) {
+        overlaps = true;
+        break;
+    }
+}
+
+if (overlaps) {
+    // Don't apply decoration - show raw syntax
+    continue;
+}
+```
+
+This allows you to edit markdown syntax normally while enjoying live preview.
+
+### Performance Optimization
+
+Live Preview only processes visible content:
+
+```typescript
+// Only decorate visible ranges
+for (const { from, to } of view.visibleRanges) {
+    // Process lines within visible range
+}
+```
+
+This ensures smooth scrolling and editing even in large documents.
+
+**Source**: `packages/plugins/src/live-preview/livePreviewExtension.ts:69-73`
+
+## Examples
+
+### Bold Text
+
+**Input**: `**bold text**`
+
+**Rendered**: Shows as **bold text** with hidden `**` markers
+
+**When cursor is inside**: Shows `**bold text**` with markers visible
+
+### Headings
+
+**Input**:
+```markdown
+# Heading 1
+## Heading 2
+### Heading 3
+```
+
+**Rendered**: Large headings with themed colors, `#` symbols hidden
+
+### Links
+
+**Input**: `[Click here](https://example.com)`
+
+**Rendered**: Clickable "Click here" link, URL syntax hidden
+
+**Ctrl+Click**: Opens URL in browser
+
+### Code Blocks
+
+**Input**:
+````markdown
+```javascript
+function greet(name) {
+  console.log(`Hello, ${name}!`);
+}
+```
+````
+
+**Rendered**: 
+- Background color from theme
+- Syntax highlighting for JavaScript
+- Copy button widget
+- Language badge
+- Hidden fence markers when not editing
+
+### Images
+
+**Input**: `![Alt text](./image.png)`
+
+**Rendered**: Actual image displayed inline, syntax hidden
+
+### Callouts
+
+**Input**:
+```markdown
+> [!NOTE]
+> This is a note callout with important information.
+```
+
+**Rendered**:
+- Colored border (based on type)
+- Icon widget
+- Formatted title
+- Styled content area
+
+## Code Block Features
+
+### Syntax Highlighting
+
+Code blocks use the theme's syntax highlighting colors:
+
+```typescript
+// Highlighted with theme colors
+const message: string = "Hello";
+function greet(name: string) {
+  return `${message}, ${name}!`;
+}
+```
+
+**Theme variables used**:
+- `--code-bg`: Background color
+- `--code-keyword`: Keywords (const, function)
+- `--code-string`: String literals
+- `--code-comment`: Comments
+- `--code-function`: Function names
+- `--code-number`: Numbers
+
+### Copy Button Widget
+
+Code blocks include a copy button in the top-right corner:
+
+```typescript
+class CopyButton extends WidgetType {
+    toDOM(): HTMLElement {
+        const button = document.createElement('button');
+        button.className = 'cm-code-copy-button';
+        button.textContent = 'Copy';
+        button.onclick = () => {
+            navigator.clipboard.writeText(this.code);
+            button.textContent = 'Copied!';
+            setTimeout(() => button.textContent = 'Copy', 2000);
+        };
+        return button;
+    }
+}
+```
+
+**Source**: `packages/plugins/src/live-preview/widgets/CopyButton.ts`
+
+### Language Badge Widget
+
+Shows the language name in the top-left:
+
+```typescript
+class LanguageBadge extends WidgetType {
+    constructor(private language: string) {
+        super();
+    }
+    
+    toDOM(): HTMLElement {
+        const badge = document.createElement('span');
+        badge.className = 'cm-code-language-badge';
+        badge.textContent = this.language;
+        return badge;
+    }
+}
+```
+
+**Source**: `packages/plugins/src/live-preview/widgets/LanguageBadge.ts`
+
+## Container System
+
+The plugin uses a container registry to handle nested structures:
+
+```typescript
+interface DecorationContext {
+    containerType?: 'callout' | 'list' | 'quote';
+    containerLevel: number;
+    contentOffset: number;  // Where actual content starts
+    shouldDecorate: boolean;
+}
+```
+
+This allows proper rendering of:
+- Nested lists
+- Callouts with formatted content
+- Blockquotes with inline formatting
+
+**Source**: `packages/plugins/src/live-preview/context/DecorationContext.ts`
+
+## CSS Styling
+
+The plugin includes CSS for visual effects:
+
+### Code Block Styling
+
+```css
+/* Code block background */
+.cm-codeblock-line {
+    background-color: var(--code-bg);
+    border-left: 3px solid var(--code-border, rgba(255,255,255,0.1));
+}
+
+/* Copy button */
+.cm-code-copy-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    background: var(--button-secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+```
+
+**Source**: `packages/plugins/src/live-preview/styles/codeblock.css`
+
+### List Styling
+
+```css
+/* List markers */
+.cm-list-marker {
+    color: var(--cm-list-marker);
+    font-weight: bold;
+}
+
+/* Nested list indentation */
+.cm-list-level-1 { padding-left: 20px; }
+.cm-list-level-2 { padding-left: 40px; }
+.cm-list-level-3 { padding-left: 60px; }
+```
+
+**Source**: `packages/plugins/src/live-preview/styles/list.css`
+
+### Callout Styling
+
+```css
+/* Callout container */
+.cm-callout {
+    border-left: 4px solid var(--callout-note-border);
+    background: var(--callout-note-bg);
+    padding: 12px;
+    border-radius: var(--radius-md);
+    margin: 8px 0;
+}
+
+/* Callout icon */
+.cm-callout-icon {
+    color: var(--callout-note-icon);
+    margin-right: 8px;
+}
+```
+
+**Source**: `packages/plugins/src/live-preview/styles/callout.css`
+
+## Configuration
+
+The Live Preview plugin currently has no user-configurable settings. It's either enabled or disabled.
+
+### Future Configuration Options
+
+Potential future settings:
+- Toggle specific features (e.g., disable image preview)
+- Configure keyboard modifiers for link clicks
+- Adjust decoration behavior
+
+## Integration with Editor
+
+The plugin is integrated directly into the Editor component:
+
+```typescript
+import { livePreviewExtension } from '@inkdown/plugins/live-preview';
+
+// Check if plugin is enabled
+if (app.pluginManager.isPluginEnabled('live-preview')) {
+    extensions.push(livePreviewExtension(app, filePath));
+}
+```
+
+**Source**: From plugin comment in `LivePreviewPlugin.ts:19-20`
+
+## Performance Characteristics
+
+### Time Complexity
+
+- **Per-line processing**: O(n) where n is the number of visible lines
+- **Decoration updates**: Only on document changes, viewport changes, or selection changes
+- **Memory usage**: Minimal, decorations are reused
+
+### Optimization Strategies
+
+1. **Viewport-based rendering**: Only visible content is decorated
+2. **Incremental updates**: Only changed lines are reprocessed
+3. **Decoration caching**: Reuses unchanged decorations
+4. **Syntax tree parsing**: Uses CodeMirror's efficient syntax tree
+
+## Troubleshooting
+
+### Links aren't clickable
+
+**Solution**: Ensure the Live Preview plugin is enabled in Settings → Plugins.
+
+### Syntax keeps appearing/disappearing
+
+**Cause**: Cursor is near decoration boundaries.
+
+**Solution**: This is intentional behavior - syntax shows when you're editing it.
+
+### Images not loading
+
+**Causes**:
+1. File path is incorrect
+2. Image file doesn't exist
+3. No read permissions
+
+**Solution**: Check file paths are relative to the note's location.
+
+### Performance issues with large documents
+
+**Cause**: Too many decorations being applied.
+
+**Solution**: Live Preview only decorates visible content, but very complex documents may still be slow. Consider:
+1. Breaking document into smaller files
+2. Temporarily disabling Live Preview
+3. Closing other tabs to reduce memory usage
+
+## API Reference
+
+### Plugin Class
+
+```typescript
+export default class LivePreviewPlugin extends Plugin {
+    async onload(): Promise<void>;
+    async onunload(): Promise<void>;
+}
+```
+
+**Source**: `packages/plugins/src/live-preview/LivePreviewPlugin.ts:22-35`
+
+### Extension Function
+
+```typescript
+function livePreviewExtension(app: App, filePath?: string): Extension
+```
+
+Creates the CodeMirror extension for live preview.
+
+**Parameters**:
+- `app`: The Inkdown app instance
+- `filePath`: Optional path to current file (for resolving image paths)
+
+**Returns**: CodeMirror `Extension` that applies live preview decorations
+
+**Source**: `packages/plugins/src/live-preview/livePreviewExtension.ts:181-202`
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Emoji Plugin" icon="smile" href="/built-in/emoji">
+    Convert emoji codes to emoji characters
+  </Card>
+  <Card title="Theme System" icon="palette" href="/themes/introduction">
+    Customize live preview colors
+  </Card>
+  <Card title="Editor API" icon="code" href="/plugins/editor">
+    CodeMirror editor integration
+  </Card>
+</CardGroup>

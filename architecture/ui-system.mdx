@@ -1,0 +1,503 @@
+---
+title: UI System
+description: Cross-platform UI abstraction and component system
+---
+
+# UI System Architecture
+
+Inkdown uses a bridge pattern to provide a consistent UI API across different platforms (Desktop/Web vs Mobile/React Native) while allowing for platform-specific implementations.
+
+## Overview
+
+The UI architecture ensures that plugins and core logic can create user interface elements like modals, settings, notices, and lists without knowing whether they are running in a DOM environment (React) or a native environment (React Native).
+
+```mermaid
+graph TB
+    subgraph "Plugin/Core Layer"
+        Plugin["Plugin"]
+        ModalWithApp["Modal (Abstract Base)"]
+        SettingWithApp["Setting (Abstract Base)"]
+    end
+
+    subgraph "Bridge Layer"
+        UIBridge["UIBridge (Singleton)"]
+        IUIProvider["<<interface>> IUIProvider"]
+    end
+
+    subgraph "Platform Implementation"
+        DOMProvider["DOMUIProvider"]
+        RNProvider["RNUIProvider (Future)"]
+        
+        DOMModal["DOMModalImpl"]
+        RNModal["RNModalImpl"]
+    end
+
+    Plugin --> ModalWithApp
+    ModalWithApp --> UIBridge
+    UIBridge --> IUIProvider
+    
+    IUIProvider <|.. DOMProvider
+    IUIProvider <|.. RNProvider
+    
+    DOMProvider ..> DOMModal : Creates
+    RNProvider ..> RNModal : Creates
+```
+
+## Core Abstractions
+
+### 1. UIBridge
+
+**Location**: `packages/core/src/ui/UIBridge.ts`
+
+The `UIBridge` is the entry point for all platform-specific UI operations.
+
+```typescript
+export class UIBridgeClass {
+  private _provider: IUIProvider | null = null;
+
+  registerProvider(provider: IUIProvider) {
+    this._provider = provider;
+  }
+
+  get provider(): IUIProvider {
+    if (!this._provider) {
+      throw new Error("No UI provider registered");
+    }
+    return this._provider;
+  }
+}
+
+export const UIBridge = new UIBridgeClass();
+```
+
+### 2. IUIProvider
+
+The provider interface defines methods to create UI element implementations.
+
+```typescript
+export interface IUIProvider {
+  createModal(app: App): IModalImpl;
+  createSetting(containerEl: HTMLElement | any): ISettingImpl;
+  createNotice(message: string, duration?: number): INoticeImpl;
+}
+```
+
+### 3. Implementation Interfaces
+
+Each UI component has a corresponding interface that platform providers must implement.
+
+#### IModalImpl
+
+```typescript
+export interface IModalImpl {
+  show(): void;
+  hide(): void;
+  setTitle(title: string): void;
+  setContent(content: string | HTMLElement): void;
+  
+  // Builder methods
+  addText(text: string): void;
+  addButton(text: string, onClick: () => void): void;
+  addInput(options: InputOptions): void;
+  addDropdown(options: DropdownOptions): void;
+}
+```
+
+#### ISettingImpl
+
+```typescript
+export interface ISettingImpl {
+  setName(name: string): this;
+  setDesc(desc: string): this;
+  addToggle(cb: (component: any) => void): this;
+  addText(cb: (component: any) => void): this;
+  addDropdown(cb: (component: any) => void): this;
+  addButton(cb: (component: any) => void): this;
+  addSlider(cb: (component: any) => void): this;
+}
+```
+
+#### INoticeImpl
+
+```typescript
+export interface INoticeImpl {
+  setMessage(message: string): void;
+  hide(): void;
+}
+```
+
+## Usage in Plugins
+
+Plugins use high-level classes provided by `@inkdown/core` which wrap the bridge calls.
+
+### Creating a Modal
+
+```typescript
+import { Modal, App } from '@inkdown/core';
+
+class MyPluginModal extends Modal {
+  constructor(app: App) {
+    super(app);
+  }
+
+  onOpen() {
+    this.setTitle('My Plugin Modal');
+    
+    this.addText('Enter your name:');
+    
+    this.addInput({
+      placeholder: 'Name',
+      value: '',
+      onChange: (value) => {
+        console.log('Input:', value);
+      }
+    });
+    
+    this.addButton('Submit', () => {
+      console.log('Submitted');
+      this.close();
+    });
+    
+    this.addButton('Cancel', () => {
+      this.close();
+    });
+  }
+
+  onClose() {
+    // Cleanup
+  }
+}
+
+// Usage
+const modal = new MyPluginModal(this.app);
+modal.open();
+```
+
+### Creating Settings
+
+```typescript
+import { PluginSettingTab, App, Setting } from '@inkdown/core';
+
+class MySettingsTab extends PluginSettingTab {
+  display() {
+    const { containerEl } = this;
+    
+    containerEl.empty();
+    
+    // Toggle setting
+    new Setting(containerEl)
+      .setName('Enable Feature')
+      .setDesc('Enable or disable this feature')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.featureEnabled)
+        .onChange(async (value) => {
+          this.plugin.settings.featureEnabled = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    
+    // Text input
+    new Setting(containerEl)
+      .setName('API Key')
+      .setDesc('Enter your API key')
+      .addText(text => text
+        .setPlaceholder('Enter API key')
+        .setValue(this.plugin.settings.apiKey)
+        .onChange(async (value) => {
+          this.plugin.settings.apiKey = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    
+    // Dropdown
+    new Setting(containerEl)
+      .setName('Theme')
+      .setDesc('Select theme')
+      .addDropdown(dropdown => dropdown
+        .addOption('dark', 'Dark')
+        .addOption('light', 'Light')
+        .setValue(this.plugin.settings.theme)
+        .onChange(async (value) => {
+          this.plugin.settings.theme = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    
+    // Slider
+    new Setting(containerEl)
+      .setName('Font Size')
+      .setDesc('Editor font size')
+      .addSlider(slider => slider
+        .setLimits(10, 30, 1)
+        .setValue(this.plugin.settings.fontSize)
+        .setDynamicTooltip()
+        .onChange(async (value) => {
+          this.plugin.settings.fontSize = value;
+          await this.plugin.saveSettings();
+        })
+      );
+    
+    // Button
+    new Setting(containerEl)
+      .setName('Reset Settings')
+      .setDesc('Reset all settings to defaults')
+      .addButton(button => button
+        .setButtonText('Reset')
+        .setWarning()
+        .onClick(async () => {
+          this.plugin.settings = DEFAULT_SETTINGS;
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      );
+  }
+}
+```
+
+### Creating Notices
+
+```typescript
+import { Notice } from '@inkdown/core';
+
+// Simple notice
+new Notice('File saved successfully');
+
+// Notice with duration
+new Notice('This will disappear in 5 seconds', 5000);
+
+// Error notice
+new Notice('Error: Could not save file', 0); // 0 = stays until dismissed
+```
+
+## Platform Registration
+
+Platforms register their specific UI strategies at startup.
+
+### Desktop (Tauri/React)
+
+```typescript
+// apps/desktop/src/main.tsx
+import { DOMUIProvider } from './ui/DOMUIProvider';
+import { UIBridge } from '@inkdown/core/ui';
+
+UIBridge.registerProvider(new DOMUIProvider());
+```
+
+### Mobile (React Native - Future)
+
+```typescript
+// apps/mobile/src/index.tsx
+import { RNUIProvider } from './ui/RNUIProvider';
+import { UIBridge } from '@inkdown/core/ui';
+
+UIBridge.registerProvider(new RNUIProvider());
+```
+
+## Platform Implementations
+
+### DOMUIProvider (Desktop/Web)
+
+```typescript
+export class DOMUIProvider implements IUIProvider {
+  createModal(app: App): IModalImpl {
+    return new DOMModalImpl(app);
+  }
+  
+  createSetting(containerEl: HTMLElement): ISettingImpl {
+    return new DOMSettingImpl(containerEl);
+  }
+  
+  createNotice(message: string, duration?: number): INoticeImpl {
+    return new DOMNoticeImpl(message, duration);
+  }
+}
+```
+
+### RNUIProvider (Mobile - Future)
+
+```typescript
+export class RNUIProvider implements IUIProvider {
+  createModal(app: App): IModalImpl {
+    return new RNModalImpl(app);
+  }
+  
+  createSetting(container: any): ISettingImpl {
+    return new RNSettingImpl(container);
+  }
+  
+  createNotice(message: string, duration?: number): INoticeImpl {
+    return new RNNoticeImpl(message, duration);
+  }
+}
+```
+
+## Component Component APIs
+
+### Modal
+
+```typescript
+class MyModal extends Modal {
+  onOpen() {
+    // Set title
+    this.setTitle('Modal Title');
+    
+    // Add text
+    this.addText('Some descriptive text');
+    
+    // Add input
+    this.addInput({
+      placeholder: 'Enter text',
+      value: '',
+      onChange: (value) => {}
+    });
+    
+    // Add dropdown
+    this.addDropdown({
+      options: ['Option 1', 'Option 2'],
+      value: 'Option 1',
+      onChange: (value) => {}
+    });
+    
+    // Add buttons
+    this.addButton('OK', () => this.close());
+    this.addButton('Cancel', () => this.close());
+  }
+  
+  onClose() {
+    // Cleanup
+  }
+}
+
+// Open modal
+const modal = new MyModal(app);
+modal.open();
+```
+
+### Setting
+
+```typescript
+// Create setting
+const setting = new Setting(containerEl);
+
+// Set name and description
+setting
+  .setName('Setting Name')
+  .setDesc('Setting description');
+
+// Add control
+setting.addToggle(toggle => {
+  toggle
+    .setValue(true)
+    .onChange((value) => {
+      console.log('Toggle:', value);
+    });
+});
+```
+
+### Notice
+
+```typescript
+// Create notice
+const notice = new Notice('Message', 3000);
+
+// Manually hide
+notice.hide();
+```
+
+## Styling
+
+UI components use CSS variables for theming:
+
+```css
+/* Modal styles */
+.modal-overlay {
+  background: var(--bg-overlay);
+}
+
+.modal-container {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.modal-title {
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+/* Setting styles */
+.setting-item {
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.setting-item-name {
+  color: var(--text-primary);
+}
+
+.setting-item-description {
+  color: var(--text-secondary);
+}
+
+/* Notice styles */
+.notice {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+```
+
+## Best Practices
+
+### 1. Always Use Abstractions
+
+Never access DOM directly in plugins:
+
+```typescript
+// Bad
+document.getElementById('my-element');
+
+// Good
+const modal = new Modal(this.app);
+modal.open();
+```
+
+### 2. Clean Up Resources
+
+Always clean up in `onClose()` or `onunload()`:
+
+```typescript
+class MyModal extends Modal {
+  private subscription: any;
+  
+  onOpen() {
+    this.subscription = someObservable.subscribe(...);
+  }
+  
+  onClose() {
+    this.subscription?.unsubscribe();
+  }
+}
+```
+
+### 3. Use Type Safety
+
+Leverage TypeScript for type safety:
+
+```typescript
+interface MyModalOptions {
+  title: string;
+  onSubmit: (value: string) => void;
+}
+
+class MyModal extends Modal {
+  constructor(app: App, private options: MyModalOptions) {
+    super(app);
+  }
+}
+```
+
+## Related Documentation
+
+- [Architecture Overview](/architecture/overview) - High-level architecture
+- [Plugin Development](/plugins/introduction) - Creating plugins with UI
+- [Theme System](/architecture/theme-system) - Styling UI components

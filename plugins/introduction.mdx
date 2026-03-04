@@ -1,0 +1,122 @@
+---
+title: Plugin System
+description: Overview of the Inkdown plugin system for extending functionality
+---
+
+## Overview
+
+Inkdown's plugin system allows you to extend the editor with custom functionality. Plugins can:
+
+- Add commands to the command palette
+- Register custom keyboard shortcuts
+- Create status bar items
+- Add settings tabs
+- Process markdown content
+- Extend the editor with CodeMirror extensions
+- Create custom modals and UI components
+- Listen to file system events
+- Access the metadata cache
+- Manipulate editor content
+
+## Plugin Types
+
+### Built-in Plugins
+
+Inkdown ships with several built-in plugins that demonstrate best practices:
+
+- **Word Count**: Status bar integration and settings
+- **Quick Finder**: Fuzzy search modal for files
+- **Slash Commands**: Editor suggest for quick formatting
+- **Emoji**: Markdown processing and editor extensions
+- **Live Preview**: Advanced CodeMirror decorations
+
+### Community Plugins
+
+Community plugins are developed by third-party developers and can be installed from the plugin marketplace. See [Community Plugins](/plugins/community-plugins) for publishing guidelines.
+
+## Plugin Architecture
+
+### Base Plugin Class
+
+All plugins extend the `Plugin` base class:
+
+```typescript
+import { Plugin } from '@inkdown/api';
+
+export default class MyPlugin extends Plugin {
+  async onload() {
+    // Initialize plugin
+  }
+
+  async onunload() {
+    // Cleanup
+  }
+}
+```
+
+### App Interface
+
+Plugins receive an `app` instance that provides access to all Inkdown managers:
+
+```typescript
+this.app.workspace        // File operations
+this.app.commandManager   // Command registration
+this.app.metadataCache    // File metadata
+this.app.editorRegistry   // Active editor access
+```
+
+### Plugin Manifest
+
+Every plugin requires a `manifest.json` file:
+
+```json
+{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "A plugin for Inkdown",
+  "author": "Your Name",
+  "authorUrl": "https://yourwebsite.com"
+}
+```
+
+## Plugin Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Commands" icon="terminal" href="/plugins/commands">
+    Register commands with keyboard shortcuts
+  </Card>
+  <Card title="Modals" icon="window" href="/plugins/modals">
+    Create custom dialogs and search interfaces
+  </Card>
+  <Card title="Settings" icon="sliders" href="/plugins/settings">
+    Add settings tabs and UI controls
+  </Card>
+  <Card title="Status Bar" icon="layout-panel-top" href="/plugins/status-bar">
+    Display information in the status bar
+  </Card>
+  <Card title="Editor" icon="code" href="/plugins/editor">
+    Manipulate editor content and selections
+  </Card>
+  <Card title="Workspace" icon="folder" href="/plugins/workspace">
+    Access files and listen to events
+  </Card>
+  <Card title="Markdown Processing" icon="file-text" href="/plugins/markdown-processing">
+    Process and transform markdown content
+  </Card>
+  <Card title="Editor Extensions" icon="puzzle" href="/plugins/editor-extensions">
+    Extend CodeMirror with custom functionality
+  </Card>
+</CardGroup>
+
+## Getting Started
+
+Ready to build your first plugin? Follow the [Quickstart Guide](/plugins/quickstart) to create a basic plugin in minutes.
+
+## API Reference
+
+- [Plugin Class](/plugins/plugin-class) - Base class and lifecycle methods
+- [App Interface](/plugins/app-interface) - Access to core managers
+- [Events](/plugins/events) - Event system and listeners
+- [Best Practices](/plugins/best-practices) - Guidelines for plugin development

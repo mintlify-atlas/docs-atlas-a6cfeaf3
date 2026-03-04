@@ -1,0 +1,483 @@
+---
+title: Markdown Processing
+description: Process and transform markdown content
+---
+
+## Overview
+
+Inkdown provides APIs to process markdown content both during rendering (post-processors) and for specific code blocks (code block processors).
+
+```typescript
+// Post processor - runs on all rendered markdown
+this.registerMarkdownPostProcessor((el, ctx) => {
+  // Process rendered HTML elements
+});
+
+// Code block processor - runs on specific language code blocks
+this.registerMarkdownCodeBlockProcessor('mermaid', (source, el, ctx) => {
+  // Process code block content
+});
+```
+
+## Types
+
+```typescript
+type MarkdownPostProcessor = (
+  el: IMarkdownElement,
+  ctx: MarkdownPostProcessorContext
+) => void | Promise<void>;
+
+type MarkdownCodeBlockProcessor = (
+  source: string,
+  el: IMarkdownElement,
+  ctx: MarkdownPostProcessorContext
+) => void | Promise<void>;
+
+interface MarkdownPostProcessorContext {
+  sourcePath: string;
+  frontmatter?: Record<string, unknown>;
+  getSectionInfo?: (el: IMarkdownElement) => SectionInfo | null;
+}
+
+interface SectionInfo {
+  lineStart: number;
+  lineEnd: number;
+  text: string;
+}
+```
+
+## IMarkdownElement
+
+Abstraction over HTML elements for cross-platform compatibility.
+
+```typescript
+interface IMarkdownElement {
+  addClass(className: string): void;
+  removeClass(className: string): void;
+  hasClass(className: string): boolean;
+  setText(text: string): void;
+  getText(): string;
+  setInnerHTML(html: string): void;
+  getInnerHTML(): string;
+  setAttribute(name: string, value: string): void;
+  getAttribute(name: string): string | null;
+  find(selector: string): IMarkdownElement | null;
+  findAll(selector: string): IMarkdownElement[];
+  appendChild(child: IMarkdownElement): void;
+  remove(): void;
+  getParent(): IMarkdownElement | null;
+  getNativeElement(): unknown;
+}
+```
+
+## Markdown Post Processors
+
+Post processors run on all rendered markdown content.
+
+### Registration
+
+```typescript
+this.registerMarkdownPostProcessor((el, ctx) => {
+  // Process the rendered element
+  console.log('Source:', ctx.sourcePath);
+  console.log('Frontmatter:', ctx.frontmatter);
+});
+```
+
+### Example: External Link Icons
+
+```typescript
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const links = el.findAll('a');
+  
+  for (const link of links) {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('http')) {
+      link.addClass('external-link');
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener noreferrer');
+    }
+  }
+});
+```
+
+### Example: Custom Block Quotes
+
+```typescript
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const blockquotes = el.findAll('blockquote');
+  
+  for (const quote of blockquotes) {
+    const text = quote.getText().trim();
+    
+    // Add icon for quotes starting with "Note:"
+    if (text.startsWith('Note:')) {
+      quote.addClass('note-quote');
+      const icon = document.createElement('span');
+      icon.className = 'quote-icon';
+      icon.textContent = '📝';
+      quote.getNativeElement().prepend(icon);
+    }
+    
+    // Warning quotes
+    if (text.startsWith('Warning:')) {
+      quote.addClass('warning-quote');
+    }
+  }
+});
+```
+
+### Example: Highlight Search Terms
+
+```typescript
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const searchTerm = this.getSearchTerm();
+  if (!searchTerm) return;
+
+  const walker = document.createTreeWalker(
+    el.getNativeElement(),
+    NodeFilter.SHOW_TEXT
+  );
+
+  const nodesToReplace: Array<{node: Node; text: string}> = [];
+  let node;
+
+  while (node = walker.nextNode()) {
+    const text = node.textContent || '';
+    if (text.toLowerCase().includes(searchTerm.toLowerCase())) {
+      nodesToReplace.push({node, text});
+    }
+  }
+
+  for (const {node, text} of nodesToReplace) {
+    const highlighted = text.replace(
+      new RegExp(`(${searchTerm})`, 'gi'),
+      '<mark>$1</mark>'
+    );
+    const span = document.createElement('span');
+    span.innerHTML = highlighted;
+    node.parentNode?.replaceChild(span, node);
+  }
+});
+```
+
+### Example: Process Images
+
+```typescript
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const images = el.findAll('img');
+  
+  for (const img of images) {
+    // Add lazy loading
+    img.setAttribute('loading', 'lazy');
+    
+    // Add click to zoom
+    img.addClass('zoomable');
+    
+    // Wrap in figure with caption
+    const alt = img.getAttribute('alt');
+    if (alt) {
+      const figure = document.createElement('figure');
+      const caption = document.createElement('figcaption');
+      caption.textContent = alt;
+      
+      const parent = img.getParent();
+      if (parent) {
+        parent.appendChild(figure);
+        figure.appendChild(img.getNativeElement());
+        figure.appendChild(caption);
+      }
+    }
+  }
+});
+```
+
+## Code Block Processors
+
+Process code blocks with specific language identifiers.
+
+### Registration
+
+```typescript
+this.registerMarkdownCodeBlockProcessor(
+  'mermaid',
+  (source, el, ctx) => {
+    // Process mermaid diagram source
+    el.setText('Diagram: ' + source);
+  }
+);
+```
+
+### Example: Mermaid Diagrams
+
+```typescript
+import mermaid from 'mermaid';
+
+this.registerMarkdownCodeBlockProcessor(
+  'mermaid',
+  async (source, el, ctx) => {
+    const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+    
+    try {
+      const {svg} = await mermaid.render(id, source);
+      el.setInnerHTML(svg);
+      el.addClass('mermaid-diagram');
+    } catch (error) {
+      el.setText('Failed to render diagram');
+      el.addClass('mermaid-error');
+      console.error('Mermaid error:', error);
+    }
+  }
+);
+```
+
+### Example: Chart.js Charts
+
+```typescript
+import Chart from 'chart.js';
+
+this.registerMarkdownCodeBlockProcessor(
+  'chart',
+  (source, el, ctx) => {
+    try {
+      const config = JSON.parse(source);
+      const canvas = document.createElement('canvas');
+      el.getNativeElement().appendChild(canvas);
+      
+      new Chart(canvas, config);
+      el.addClass('chart-container');
+    } catch (error) {
+      el.setText('Invalid chart configuration');
+      console.error('Chart error:', error);
+    }
+  }
+);
+```
+
+### Example: Math Rendering (KaTeX)
+
+```typescript
+import katex from 'katex';
+
+this.registerMarkdownCodeBlockProcessor(
+  'math',
+  (source, el, ctx) => {
+    try {
+      const html = katex.renderToString(source, {
+        displayMode: true,
+        throwOnError: false,
+      });
+      el.setInnerHTML(html);
+      el.addClass('math-block');
+    } catch (error) {
+      el.setText('Math rendering error');
+      console.error('KaTeX error:', error);
+    }
+  }
+);
+```
+
+### Example: Code Block with Copy Button
+
+```typescript
+this.registerMarkdownCodeBlockProcessor(
+  'javascript',
+  (source, el, ctx) => {
+    const container = document.createElement('div');
+    container.className = 'code-block-container';
+    
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.textContent = source;
+    pre.appendChild(code);
+    
+    const copyButton = document.createElement('button');
+    copyButton.textContent = 'Copy';
+    copyButton.className = 'code-copy-btn';
+    copyButton.onclick = () => {
+      navigator.clipboard.writeText(source);
+      copyButton.textContent = 'Copied!';
+      setTimeout(() => {
+        copyButton.textContent = 'Copy';
+      }, 2000);
+    };
+    
+    container.appendChild(copyButton);
+    container.appendChild(pre);
+    
+    el.getNativeElement().appendChild(container);
+  }
+);
+```
+
+### Example: CSV Table
+
+```typescript
+this.registerMarkdownCodeBlockProcessor(
+  'csv',
+  (source, el, ctx) => {
+    const lines = source.trim().split('\n');
+    const table = document.createElement('table');
+    table.className = 'csv-table';
+    
+    // Header
+    if (lines.length > 0) {
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const headers = lines[0].split(',');
+      
+      for (const header of headers) {
+        const th = document.createElement('th');
+        th.textContent = header.trim();
+        headerRow.appendChild(th);
+      }
+      
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+    }
+    
+    // Body
+    if (lines.length > 1) {
+      const tbody = document.createElement('tbody');
+      
+      for (let i = 1; i < lines.length; i++) {
+        const row = document.createElement('tr');
+        const cells = lines[i].split(',');
+        
+        for (const cell of cells) {
+          const td = document.createElement('td');
+          td.textContent = cell.trim();
+          row.appendChild(td);
+        }
+        
+        tbody.appendChild(row);
+      }
+      
+      table.appendChild(tbody);
+    }
+    
+    el.getNativeElement().appendChild(table);
+  }
+);
+```
+
+## Emoji Plugin Example
+
+From the built-in Emoji plugin:
+
+```typescript
+import { Plugin, type IMarkdownElement } from '@inkdown/api';
+import { GITHUB_EMOJI_MAP } from './emojiMap';
+
+const EMOJI_REGEX = /:([a-z0-9_+-]+):/gi;
+
+export default class EmojiPlugin extends Plugin {
+  async onload() {
+    // Post processor for preview mode
+    this.registerMarkdownPostProcessor((el: IMarkdownElement, ctx) => {
+      el.replaceText(EMOJI_REGEX, (match, emojiCode) => {
+        const emoji = GITHUB_EMOJI_MAP[emojiCode.toLowerCase()];
+        return emoji || match;
+      });
+    });
+
+    // Editor extension for live preview
+    // (See editor-extensions.mdx)
+  }
+}
+```
+
+## Best Practices
+
+### Performance
+
+```typescript
+// ✅ Good - efficient selectors
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const links = el.findAll('a[href^="http"]');
+  // Process only external links
+});
+
+// ❌ Bad - process everything
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const allElements = el.findAll('*');
+  // Too expensive!
+});
+```
+
+### Error Handling
+
+```typescript
+// ✅ Good - handle errors
+this.registerMarkdownCodeBlockProcessor('custom', (source, el, ctx) => {
+  try {
+    const result = this.processCustomSyntax(source);
+    el.setInnerHTML(result);
+  } catch (error) {
+    console.error('Processing error:', error);
+    el.setText('Error processing block');
+    el.addClass('processing-error');
+  }
+});
+
+// ❌ Bad - no error handling
+this.registerMarkdownCodeBlockProcessor('custom', (source, el, ctx) => {
+  const result = this.processCustomSyntax(source); // May throw!
+  el.setInnerHTML(result);
+});
+```
+
+### Avoid Side Effects
+
+```typescript
+// ✅ Good - pure processing
+this.registerMarkdownPostProcessor((el, ctx) => {
+  const images = el.findAll('img');
+  images.forEach(img => img.addClass('lazy'));
+});
+
+// ❌ Bad - modifies global state
+this.registerMarkdownPostProcessor((el, ctx) => {
+  this.totalImages++; // Side effect!
+});
+```
+
+### Clean Up Resources
+
+```typescript
+// ✅ Good - async cleanup
+this.registerMarkdownCodeBlockProcessor(
+  'diagram',
+  async (source, el, ctx) => {
+    const instance = await this.renderDiagram(source, el);
+    
+    // Clean up when element is removed
+    this.register(() => {
+      instance.destroy();
+    });
+  }
+);
+```
+
+### Context Usage
+
+```typescript
+// ✅ Good - use context
+this.registerMarkdownPostProcessor((el, ctx) => {
+  // Conditional processing based on file
+  if (ctx.sourcePath.startsWith('daily/')) {
+    el.addClass('daily-note');
+  }
+  
+  // Access frontmatter
+  if (ctx.frontmatter?.draft) {
+    el.addClass('draft-content');
+  }
+});
+```
+
+## Related
+
+- [Editor Extensions](/plugins/editor-extensions) - Editor-level processing
+- [Plugin Class](/plugins/plugin-class) - Registration methods
+- [Best Practices](/plugins/best-practices) - Development guidelines

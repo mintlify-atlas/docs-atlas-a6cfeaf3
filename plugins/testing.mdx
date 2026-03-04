@@ -1,0 +1,495 @@
+---
+title: Testing
+description: Testing strategies for Inkdown plugins
+---
+
+## Overview
+
+Testing plugins ensures reliability and prevents regressions. This guide covers testing strategies and best practices.
+
+## Testing Setup
+
+### Install Dependencies
+
+```bash
+npm install --save-dev jest @types/jest ts-jest
+```
+
+### Jest Configuration
+
+```javascript jest.config.js
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  moduleNameMapper: {
+    '^@inkdown/api$': '<rootDir>/tests/__mocks__/inkdown-api.ts',
+  },
+};
+```
+
+### Package Scripts
+
+```json package.json
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src tests --ext ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
+```
+
+## Mocking Inkdown API
+
+Create mocks for testing without Inkdown:
+
+### Mock App
+
+```typescript tests/__mocks__/inkdown-api.ts
+export class MockPlugin {
+  app: any;
+  manifest: any;
+  
+  constructor(app: any, manifest: any) {
+    this.app = app;
+    this.manifest = manifest;
+  }
+  
+  async onload() {}
+  async onunload() {}
+  
+  addCommand = jest.fn();
+  addSettingTab = jest.fn();
+  addStatusBarItem = jest.fn();
+  registerEvent = jest.fn();
+  loadData = jest.fn();
+  saveData = jest.fn();
+  showNotice = jest.fn();
+}
+
+export const createMockApp = () => ({
+  workspace: {
+    getAllFiles: jest.fn().mockResolvedValue([]),
+    getMarkdownFiles: jest.fn().mockResolvedValue([]),
+    getAbstractFileByPath: jest.fn(),
+    read: jest.fn(),
+    modify: jest.fn(),
+    create: jest.fn(),
+    delete: jest.fn(),
+    onFileCreate: jest.fn(),
+    onFileModify: jest.fn(),
+    onFileDelete: jest.fn(),
+  },
+  vault: {
+    adapter: {
+      read: jest.fn(),
+      write: jest.fn(),
+    },
+  },
+  metadataCache: {
+    getCache: jest.fn(),
+    onChanged: jest.fn(),
+  },
+  editorRegistry: {
+    getActive: jest.fn(),
+  },
+});
+
+export const createMockFile = (path: string): any => ({
+  path,
+  name: path.split('/').pop(),
+  basename: path.split('/').pop()?.replace(/\.md$/, ''),
+  extension: 'md',
+  stat: {
+    mtime: Date.now(),
+    ctime: Date.now(),
+    size: 0,
+  },
+});
+```
+
+## Unit Tests
+
+Test individual functions and methods:
+
+### Testing Utilities
+
+```typescript tests/utils.test.ts
+import { countWords, sanitizeFileName } from '../src/utils';
+
+describe('countWords', () => {
+  it('counts words correctly', () => {
+    expect(countWords('Hello world')).toBe(2);
+    expect(countWords('One')).toBe(1);
+    expect(countWords('')).toBe(0);
+  });
+
+  it('handles multiple spaces', () => {
+    expect(countWords('Hello    world')).toBe(2);
+  });
+
+  it('ignores markdown syntax', () => {
+    expect(countWords('**bold** text')).toBe(2);
+  });
+});
+
+describe('sanitizeFileName', () => {
+  it('removes invalid characters', () => {
+    expect(sanitizeFileName('file:name')).toBe('filename');
+    expect(sanitizeFileName('file*name')).toBe('filename');
+  });
+
+  it('preserves valid characters', () => {
+    expect(sanitizeFileName('my-file_123')).toBe('my-file_123');
+  });
+});
+```
+
+### Testing Plugin Methods
+
+```typescript tests/plugin.test.ts
+import MyPlugin from '../src/index';
+import { createMockApp, MockPlugin } from './__mocks__/inkdown-api';
+
+describe('MyPlugin', () => {
+  let plugin: MyPlugin;
+  let mockApp: any;
+
+  beforeEach(() => {
+    mockApp = createMockApp();
+    const manifest = {
+      id: 'my-plugin',
+      name: 'My Plugin',
+      version: '1.0.0',
+      minAppVersion: '1.0.0',
+    };
+    plugin = new MyPlugin(mockApp, manifest);
+  });
+
+  describe('onload', () => {
+    it('registers commands', async () => {
+      await plugin.onload();
+      expect(plugin.addCommand).toHaveBeenCalled();
+    });
+
+    it('creates status bar item', async () => {
+      await plugin.onload();
+      expect(plugin.addStatusBarItem).toHaveBeenCalled();
+    });
+
+    it('loads settings', async () => {
+      const mockSettings = { enabled: true };
+      plugin.loadData = jest.fn().mockResolvedValue(mockSettings);
+      
+      await plugin.onload();
+      
+      expect(plugin.loadData).toHaveBeenCalled();
+      expect(plugin.settings.enabled).toBe(true);
+    });
+  });
+
+  describe('processFile', () => {
+    it('processes file correctly', async () => {
+      const file = createMockFile('test.md');
+      mockApp.workspace.read.mockResolvedValue('# Test');
+      
+      await plugin.processFile(file);
+      
+      expect(mockApp.workspace.read).toHaveBeenCalledWith(file);
+    });
+
+    it('handles errors gracefully', async () => {
+      const file = createMockFile('test.md');
+      mockApp.workspace.read.mockRejectedValue(new Error('Read failed'));
+      
+      await expect(plugin.processFile(file)).rejects.toThrow('Read failed');
+    });
+  });
+});
+```
+
+## Integration Tests
+
+Test interactions between components:
+
+```typescript tests/integration.test.ts
+import MyPlugin from '../src/index';
+import { createMockApp, createMockFile } from './__mocks__/inkdown-api';
+
+describe('MyPlugin Integration', () => {
+  let plugin: MyPlugin;
+  let mockApp: any;
+
+  beforeEach(async () => {
+    mockApp = createMockApp();
+    const manifest = { id: 'my-plugin', name: 'My Plugin', version: '1.0.0', minAppVersion: '1.0.0' };
+    plugin = new MyPlugin(mockApp, manifest);
+    await plugin.onload();
+  });
+
+  it('updates status bar when file is modified', async () => {
+    const file = createMockFile('test.md');
+    mockApp.workspace.read.mockResolvedValue('Hello world');
+    
+    // Trigger file modify event
+    const onModifyCallback = mockApp.workspace.onFileModify.mock.calls[0][0];
+    await onModifyCallback(file);
+    
+    // Verify status bar was updated
+    expect(plugin.statusBarItem.setText).toHaveBeenCalled();
+  });
+
+  it('saves settings when changed', async () => {
+    plugin.settings.enabled = false;
+    await plugin.saveSettings();
+    
+    expect(plugin.saveData).toHaveBeenCalledWith({
+      enabled: false,
+    });
+  });
+});
+```
+
+## Manual Testing
+
+### Test Checklist
+
+- [ ] Plugin loads without errors
+- [ ] Commands appear in command palette
+- [ ] Commands execute correctly
+- [ ] Settings UI displays correctly
+- [ ] Settings persist after restart
+- [ ] Status bar items display correctly
+- [ ] Event listeners work correctly
+- [ ] Plugin unloads cleanly
+- [ ] No memory leaks
+- [ ] Works with empty workspace
+- [ ] Works with large workspace
+- [ ] Error messages are helpful
+
+### Platform Testing
+
+Test on multiple platforms:
+
+- [ ] Linux
+- [ ] macOS
+- [ ] Windows
+
+### Edge Cases
+
+- [ ] Empty files
+- [ ] Large files (>1MB)
+- [ ] Files with special characters
+- [ ] Files in nested folders
+- [ ] Rapid file modifications
+- [ ] Plugin enabled/disabled multiple times
+- [ ] Multiple instances of Inkdown
+
+## Performance Testing
+
+### Benchmark Utilities
+
+```typescript tests/performance.test.ts
+import MyPlugin from '../src/index';
+import { createMockApp, createMockFile } from './__mocks__/inkdown-api';
+
+describe('Performance', () => {
+  it('processes 1000 files quickly', async () => {
+    const plugin = new MyPlugin(createMockApp(), { id: 'test', name: 'Test', version: '1.0.0', minAppVersion: '1.0.0' });
+    const files = Array.from({ length: 1000 }, (_, i) => 
+      createMockFile(`file${i}.md`)
+    );
+
+    const start = Date.now();
+    await plugin.processFiles(files);
+    const duration = Date.now() - start;
+
+    expect(duration).toBeLessThan(5000); // 5 seconds
+  });
+
+  it('does not leak memory', async () => {
+    const plugin = new MyPlugin(createMockApp(), { id: 'test', name: 'Test', version: '1.0.0', minAppVersion: '1.0.0' });
+    
+    // Simulate many operations
+    for (let i = 0; i < 100; i++) {
+      await plugin.onload();
+      await plugin.onunload();
+    }
+
+    // Check no resources leaked
+    // (In real test, use memory profiling tools)
+  });
+});
+```
+
+### Memory Profiling
+
+Use Chrome DevTools to profile memory:
+
+1. Open Inkdown with `--inspect` flag
+2. Open chrome://inspect
+3. Take heap snapshots before and after operations
+4. Look for retained objects
+
+## Debugging
+
+### Console Logging
+
+```typescript
+export default class MyPlugin extends Plugin {
+  private debug = true;
+
+  log(...args: any[]) {
+    if (this.debug) {
+      console.log('[MyPlugin]', ...args);
+    }
+  }
+
+  async onload() {
+    this.log('Loading plugin');
+    // ...
+  }
+}
+```
+
+### Error Tracking
+
+```typescript
+export default class MyPlugin extends Plugin {
+  async processFile(file: TFile) {
+    try {
+      const content = await this.app.workspace.read(file);
+      return this.process(content);
+    } catch (error) {
+      console.error('Failed to process file:', file.path, error);
+      this.showNotice('Failed to process file');
+      throw error;
+    }
+  }
+}
+```
+
+### VSCode Debug Configuration
+
+```json .vscode/launch.json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Jest Tests",
+      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "args": ["--runInBand"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}
+```
+
+## Continuous Integration
+
+### GitHub Actions
+
+```yaml .github/workflows/test.yml
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      
+      - uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage-final.json
+```
+
+## Best Practices
+
+### Write Testable Code
+
+```typescript
+// ✅ Good - testable
+function processContent(content: string): string {
+  return content.toUpperCase();
+}
+
+class MyPlugin extends Plugin {
+  async processFile(file: TFile) {
+    const content = await this.app.workspace.read(file);
+    return processContent(content);
+  }
+}
+
+// ❌ Bad - hard to test
+class MyPlugin extends Plugin {
+  async processFile(file: TFile) {
+    const content = await this.app.workspace.read(file);
+    return content.toUpperCase(); // Can't test this logic in isolation
+  }
+}
+```
+
+### Test Behavior, Not Implementation
+
+```typescript
+// ✅ Good - tests behavior
+it('displays word count', async () => {
+  const file = createMockFile('test.md');
+  mockApp.workspace.read.mockResolvedValue('Hello world');
+  
+  await plugin.updateWordCount(file);
+  
+  expect(plugin.statusBarItem.setText).toHaveBeenCalledWith('2 words');
+});
+
+// ❌ Bad - tests implementation
+it('calls countWords function', async () => {
+  const spy = jest.spyOn(plugin, 'countWords');
+  await plugin.updateWordCount(file);
+  expect(spy).toHaveBeenCalled();
+});
+```
+
+### Keep Tests Fast
+
+```typescript
+// ✅ Good - fast test
+it('sanitizes filename', () => {
+  expect(sanitizeFileName('file:name')).toBe('filename');
+});
+
+// ❌ Bad - slow test
+it('processes all files', async () => {
+  const files = await loadAllFilesFromDisk(); // Slow!
+  await plugin.processFiles(files);
+});
+```
+
+## Related
+
+- [Best Practices](/plugins/best-practices) - Development guidelines
+- [Community Plugins](/plugins/community-plugins) - Publishing
+- [Plugin Class](/plugins/plugin-class) - Plugin API

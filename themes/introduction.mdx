@@ -1,0 +1,110 @@
+---
+title: Theme System
+description: Comprehensive theming system with built-in and community themes
+---
+
+Inkdown features a powerful theming system that allows you to customize the entire look and feel of your editor. Choose from built-in themes or install community themes from GitHub.
+
+## Overview
+
+The theme system consists of three main components:
+
+1. **ThemeManager**: Manages theme loading, switching, and CSS injection for built-in and custom themes
+2. **CommunityThemeManager**: Handles browsing, installing, and managing community themes from GitHub
+3. **ConfigManager**: Persists theme preferences and installed theme metadata
+
+## Built-in Themes
+
+Inkdown ships with two professionally designed themes:
+
+- **Default Dark**: A carefully crafted dark theme optimized for extended editing sessions
+- **Default Light**: A clean light theme perfect for daytime use
+
+Both themes feature:
+- Carefully selected syntax highlighting colors
+- Optimized contrast ratios for readability
+- Support for all markdown elements
+- Consistent styling across all UI components
+
+## Custom Themes
+
+You can create your own themes or install themes created by the community. Custom themes are:
+
+- Stored in your config directory (`~/Library/Application Support/com.furqas.inkdown/themes/`)
+- Written in CSS using CSS variables
+- Hot-reloadable during development
+- Shareable via GitHub repositories
+
+## Color Schemes
+
+Inkdown supports light and dark color schemes. Themes can support:
+
+- **Dark mode only**: For themes designed exclusively for low-light environments
+- **Light mode only**: For themes optimized for bright environments
+- **Both modes**: Themes that provide separate CSS files for each mode
+
+Switch between light and dark modes instantly:
+
+```typescript
+// Switch to dark mode
+await app.themeManager.setColorScheme('dark');
+
+// Switch to light mode
+await app.themeManager.setColorScheme('light');
+
+// Get current scheme
+const scheme = app.themeManager.getColorScheme(); // 'dark' | 'light'
+```
+
+## Theme Features
+
+All themes in Inkdown control:
+
+### Editor Styling
+- Background and foreground colors
+- Selection colors
+- Cursor appearance
+- Active line highlighting
+- Line numbers
+- Scrollbar styling
+
+### Markdown Elements
+- Heading colors (H1-H6)
+- Bold, italic, strikethrough
+- Links and URLs
+- Code and code blocks
+- Blockquotes
+- Lists (ordered and unordered)
+- Tables
+- Horizontal rules
+
+### UI Components
+- Sidebar colors
+- Tab styling
+- Button appearances
+- Input field styling
+- Modal backgrounds
+- Shadows and borders
+
+### Syntax Highlighting
+- Code block syntax highlighting
+- Markdown syntax colors
+- CodeMirror editor token colors
+- Callout/alert styling
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/themes/quickstart">
+    Create your first custom theme in minutes
+  </Card>
+  <Card title="CSS Architecture" icon="code" href="/themes/css-architecture">
+    Learn how themes are structured
+  </Card>
+  <Card title="CSS Variables" icon="palette" href="/themes/css-variables">
+    Complete reference of all theme variables
+  </Card>
+  <Card title="Community Themes" icon="users" href="/themes/community-themes">
+    Share and discover themes
+  </Card>
+</CardGroup>

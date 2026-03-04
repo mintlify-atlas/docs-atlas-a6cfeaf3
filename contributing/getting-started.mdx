@@ -1,0 +1,239 @@
+---
+title: 'Getting Started'
+description: 'How to contribute to Inkdown - finding issues, PR process, and contribution guidelines'
+---
+
+Thank you for your interest in contributing to Inkdown! This guide will help you get started with contributing to the project.
+
+## Prerequisites
+
+Before you begin contributing, make sure you have the following installed:
+
+- [Node.js](https://nodejs.org/) (v18 or later)
+- [Bun](https://bun.sh/) (v1.0 or later)
+- [Rust](https://www.rust-lang.org/tools/install) (for Tauri desktop app)
+- [Git](https://git-scm.com/)
+
+## Fork and Clone
+
+1. **Fork the repository** on GitHub by clicking the "Fork" button at the top right of the [repository page](https://github.com/inkdown/inkdown)
+
+2. **Clone your fork** locally:
+
+```bash
+git clone https://github.com/YOUR_USERNAME/inkdown.git
+cd inkdown
+```
+
+3. **Add the upstream remote** to keep your fork synchronized:
+
+```bash
+git remote add upstream https://github.com/inkdown/inkdown.git
+```
+
+## Finding Issues to Work On
+
+### Good First Issues
+
+Look for issues labeled `good first issue` - these are specifically curated for new contributors and typically involve:
+
+- Documentation improvements
+- Simple bug fixes
+- UI/UX enhancements
+- Adding tests
+
+### Bug Reports
+
+Found a bug? Before creating an issue:
+
+1. **Search existing issues** to avoid duplicates
+2. **Reproduce the bug** on the latest version
+3. **Gather information**:
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Screenshots or videos (if applicable)
+   - System information (OS, version)
+
+[Open a bug report](https://github.com/inkdown/inkdown/issues/new?template=bug_report.md)
+
+### Feature Requests
+
+Have an idea for a new feature?
+
+1. **Check existing discussions** - someone might have suggested it already
+2. **Open a discussion** first before implementing to get feedback
+3. **Describe the use case** and why it would benefit users
+
+[Start a feature discussion](https://github.com/inkdown/inkdown/discussions/new?category=ideas)
+
+## Pull Request Process
+
+### Before You Start
+
+1. **Comment on the issue** you want to work on to avoid duplicate work
+2. **Ask questions** if anything is unclear
+3. **Get approval** for large features or breaking changes
+
+### Creating Your PR
+
+1. **Create a branch** from `main`:
+
+```bash
+git checkout -b feature/your-feature-name
+# or
+git checkout -b fix/your-bug-fix
+```
+
+Branch naming conventions:
+- `feature/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation changes
+- `refactor/` - Code refactoring
+- `test/` - Adding or updating tests
+
+2. **Make your changes** following the [code style guidelines](/contributing/code-style)
+
+3. **Run checks** before committing:
+
+```bash
+bun run check        # Lint and typecheck
+bun run test         # Run tests (if applicable)
+```
+
+4. **Commit your changes** following the [commit convention](#commit-convention):
+
+```bash
+git add .
+git commit -m "feat(editor): add vim mode support"
+```
+
+5. **Push to your fork**:
+
+```bash
+git push origin feature/your-feature-name
+```
+
+6. **Open a Pull Request** on GitHub:
+   - Fill out the PR template completely
+   - Link related issues
+   - Add screenshots for UI changes
+   - Request review from maintainers
+
+### PR Checklist
+
+Before submitting, ensure:
+
+- [ ] Code follows the [coding guidelines](/contributing/code-style)
+- [ ] All checks pass (`bun run check`)
+- [ ] Tests added for new functionality (when applicable)
+- [ ] Documentation updated (if needed)
+- [ ] Commits follow the [commit convention](#commit-convention)
+- [ ] PR description is clear and complete
+
+### Review Process
+
+1. **A maintainer will review** your PR within a few days
+2. **Address feedback** by pushing new commits to your branch
+3. **Tests must pass** - CI checks run automatically
+4. **Once approved**, a maintainer will merge your PR
+
+## Commit Convention
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) to maintain a clean git history.
+
+### Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### Types
+
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation |
+| `style` | Code style (formatting, etc.) |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+| `perf` | Performance improvement |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance tasks |
+
+### Examples
+
+```bash
+feat(editor): add vim mode support
+
+fix(sync): resolve conflict detection issue
+
+docs(readme): update installation instructions
+
+refactor(core): simplify plugin loading logic
+
+test(sync): add tests for encryption service
+```
+
+## Types of Contributions
+
+### Documentation
+
+Documentation improvements are always welcome:
+
+- Fix typos and grammatical errors
+- Add examples and clarifications
+- Improve navigation and structure
+- Write tutorials and guides
+
+Documentation is located in the `docs/` directory.
+
+### Code
+
+Contribute to the codebase:
+
+- Fix bugs
+- Implement new features
+- Improve performance
+- Add tests
+- Refactor code
+
+### Plugins
+
+Want to create a plugin? Check out our [Plugin Development Guide](/plugins/quickstart).
+
+### Themes
+
+Create custom themes for Inkdown:
+
+- Follow the theme structure guidelines
+- Use CSS variables for colors
+- Test in both light and dark modes
+
+## Getting Help
+
+Need assistance?
+
+- **Questions**: [GitHub Discussions](https://github.com/inkdown/inkdown/discussions)
+- **Bugs**: [GitHub Issues](https://github.com/inkdown/inkdown/issues)
+- **Development**: Check the [development guide](/contributing/development-guide)
+
+## Recognition
+
+Contributors are recognized in:
+
+- `CONTRIBUTORS.md` file
+- Release notes
+- GitHub contributors page
+- Our eternal gratitude 💜
+
+## Next Steps
+
+- Read the [Development Guide](/contributing/development-guide) for setup instructions
+- Review the [Code Style](/contributing/code-style) guidelines
+- Learn about [Testing](/contributing/testing) practices
+
+Welcome to the Inkdown community! 🎉
